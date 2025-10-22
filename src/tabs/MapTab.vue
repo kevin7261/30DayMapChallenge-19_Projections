@@ -18,15 +18,11 @@
 
   import { ref, onMounted, onUnmounted, nextTick } from 'vue';
   import * as d3 from 'd3';
-  import { useDataStore } from '@/stores/dataStore.js';
 
   export default {
     name: 'MapTab',
     emits: ['map-ready'],
     setup(_, { emit }) {
-      // 📦 存儲實例
-      const dataStore = useDataStore();
-
       // 🗺️ 地圖相關變數
       const mapContainer = ref(null);
       let svg = null;
@@ -36,18 +32,10 @@
       let g = null;
       let tooltipDiv = null;
 
-      // 🎨 從 CSS 變數獲取顏色
-      const getColorFromCSS = (varName) => {
-        return getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
-      };
-
+      // 🎨 簡化的顏色配置
       const colors = {
-        participant: getColorFromCSS('--map-country-participant'),
-        withdrawn: getColorFromCSS('--map-country-withdrawn'),
-        nonParticipant: getColorFromCSS('--map-country-non-participant'),
-        other: getColorFromCSS('--map-country-other'),
-        border: getColorFromCSS('--map-country-border'),
-        background: getColorFromCSS('--map-background'),
+        border: '#666666', // 邊界顏色
+        background: '#ffffff', // 背景顏色
       };
 
       // 🎛️ 地圖控制狀態
@@ -204,15 +192,7 @@
             .enter()
             .append('path')
             .attr('d', path)
-            .attr('fill', (d) => {
-              // 檢查國家顏色：未參與 > 退出 > 參與 > 其他
-              // 嚴格使用 GeoJSON 提供的正式名稱（優先 NAME）
-              const countryName = d.properties?.NAME || d.properties?.ADMIN || d.properties?.name;
-              if (dataStore.isNonParticipantCountry(countryName)) return colors.nonParticipant;
-              if (dataStore.isWithdrawnCountry(countryName)) return colors.withdrawn;
-              if (dataStore.isParticipantCountry(countryName)) return colors.participant;
-              return colors.other;
-            })
+            .attr('fill', '#f0f0f0') // 統一的淺灰色
             .attr('stroke', colors.border)
             .attr('stroke-width', 0.5)
             .attr('class', 'country')
@@ -241,65 +221,6 @@
           console.log('[MapTab] 世界地圖繪製完成，已繪製', countries.features?.length, '個國家');
         } catch (error) {
           console.error('[MapTab] 世界地圖繪製失敗:', error);
-        }
-      };
-
-      /**
-       * 🔴 繪製微型國家圓圈標記
-       * 為那些在低解析度地圖中不存在的微型國家繪製圓圈
-       * 參展：淡藍色 / 未造訪：灰色
-       */
-      const drawMicroStates = () => {
-        if (!g || !projection) {
-          console.error('[MapTab] 無法繪製微型國家: g=', !!g, 'projection=', !!projection);
-          return;
-        }
-
-        try {
-          console.log('[MapTab] 開始繪製微型國家圓圈，總數量:', dataStore.microStates.length);
-
-          // 繪製所有微型國家的圓圈標記
-          const microMarkers = g
-            .selectAll('.micro-state-marker')
-            .data(dataStore.microStates)
-            .enter()
-            .append('circle')
-            .attr('class', 'micro-state-marker')
-            .attr('cx', (d) => projection(d.coordinates)[0])
-            .attr('cy', (d) => projection(d.coordinates)[1])
-            .attr('r', 3) // 圓圈半徑
-            .attr('fill', (d) => {
-              // 檢查微型國家顏色：未參與 > 退出 > 參與 > 其他
-              if (dataStore.isNonParticipantCountry(d.name)) return colors.nonParticipant;
-              if (dataStore.isWithdrawnCountry(d.name)) return colors.withdrawn;
-              if (dataStore.isParticipantCountry(d.name)) return colors.participant;
-              return colors.other;
-            })
-            .attr('stroke', colors.border)
-            .attr('stroke-width', 1)
-            .style('cursor', 'pointer');
-
-          microMarkers
-            .on('mouseover', (event, d) => {
-              if (tooltipDiv) {
-                tooltipDiv.style('visibility', 'visible').text(d.name);
-              }
-            })
-            .on('mousemove', (event) => {
-              if (tooltipDiv) {
-                const [x, y] = d3.pointer(event, mapContainer.value);
-                tooltipDiv.style('left', `${x + 12}px`).style('top', `${y + 12}px`);
-              }
-            })
-            .on('mouseout', () => {
-              if (tooltipDiv) {
-                tooltipDiv.style('visibility', 'hidden');
-              }
-            });
-
-          console.log('[MapTab] 微型國家圓圈繪製完成');
-        } catch (error) {
-          console.error('[MapTab] 微型國家圓圈繪製失敗:', error);
         }
       };
 
@@ -344,11 +265,6 @@
         // 更新所有路徑
         g.selectAll('path.country').attr('d', path);
 
-        // 清除舊的微型國家圓圈
-        g.selectAll('.micro-state-marker').remove();
-        // 重新繪製微型國家圓圈標記
-        drawMicroStates();
-
         console.log('[MapTab] 地圖尺寸更新完成');
       };
 
@@ -379,8 +295,6 @@
           if (createMap()) {
             console.log('[MapTab] 地圖創建成功，開始繪製世界地圖');
             await drawWorldMap();
-            // 繪製微型國家圓圈標記
-            drawMicroStates();
           } else {
             console.log('[MapTab] 地圖創建失敗，100ms 後重試');
             setTimeout(tryCreateMap, 100);
@@ -486,14 +400,5 @@
 
   :deep(.city-marker:hover) {
     r: 6;
-  }
-
-  /* 微型國家圓圈標記樣式 */
-  :deep(.micro-state-marker) {
-    transition: all 0.2s ease;
-  }
-
-  :deep(.micro-state-marker:hover) {
-    filter: brightness(1.2);
   }
 </style>
