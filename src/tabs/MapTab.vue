@@ -76,7 +76,8 @@
             proj = d3.geoOrthographic();
             break;
           case 'Stereographic':
-            proj = d3.geoStereographic().clipAngle(90);
+            // Stereographic 投影：東經120度、北緯0度中心
+            proj = d3.geoStereographic();
             break;
           case 'Albers':
             proj = d3.geoAlbers().parallels([20, 60]);
@@ -117,7 +118,7 @@
           [width - padding, height - padding],
         ];
 
-        // 針對不同投影類型設定不同的旋轉（Conic Conformal 已在上方設定）
+        // 針對不同投影類型設定不同的旋轉
         if (type !== 'ConicConformal') {
           // 所有投影類型將中心點設為東經120度、北緯0度
           proj.rotate([-120, 0, 0]);
@@ -126,10 +127,8 @@
         // 根據投影類型選擇適當的 fit 目標
         try {
           if (type === 'Stereographic') {
-            // Stereographic 投影使用縮放比例
-            const radius = Math.min(width, height) / 2 - padding;
-            const scaleFactor = 0.8;
-            proj.scale(radius * scaleFactor).translate([width / 2, height / 2]);
+            // Stereographic 投影：使用完整地球球體，讓投影自然填滿方形視野
+            proj.fitExtent(extent, { type: 'Sphere' });
           } else if (type === 'ConicConformal') {
             // Conic Conformal 使用自訂 graticule 涵蓋從北緯90°到南緯90°
             const graticule = d3
@@ -178,14 +177,11 @@
 
         // 根據投影類型繪製新的邊框
         if (type === 'Stereographic') {
-          // 繪製方形邊框
-          const padding = 32;
-          g.insert('rect', ':first-child')
+          // Stereographic 投影使用圓形邊框（球體邊界）
+          g.insert('path', ':first-child')
+            .datum({ type: 'Sphere' })
             .attr('class', 'sphere')
-            .attr('x', padding)
-            .attr('y', padding)
-            .attr('width', width - padding * 2)
-            .attr('height', height - padding * 2)
+            .attr('d', path)
             .attr('fill', 'none')
             .attr('stroke', '#999999')
             .attr('stroke-width', 2);
@@ -310,8 +306,11 @@
       const generateGridLines = () => {
         const gridLines = [];
 
-        // 生成緯線 (每30度一條，從-60到60度)
-        for (let lat = -60; lat <= 60; lat += 30) {
+        // 生成緯線 (每30度一條，從-90到90度)
+        for (let lat = -90; lat <= 90; lat += 30) {
+          // 跳過南北極點（它們是點而非線）
+          if (lat === -90 || lat === 90) continue;
+
           const line = {
             type: 'Feature',
             geometry: {
@@ -328,8 +327,8 @@
           gridLines.push(line);
         }
 
-        // 生成經線 (每30度一條，從-180到180度)
-        for (let lon = -180; lon <= 180; lon += 30) {
+        // 生成經線 (每30度一條，從-180到150度)
+        for (let lon = -180; lon <= 150; lon += 30) {
           const line = {
             type: 'Feature',
             geometry: {
@@ -338,8 +337,8 @@
             },
           };
 
-          // 每條經線由多個點組成，從-80到80度緯度
-          for (let lat = -80; lat <= 80; lat += 1) {
+          // 每條經線由多個點組成，從南極(-90)到北極(90)
+          for (let lat = -90; lat <= 90; lat += 1) {
             line.geometry.coordinates.push([lon, lat]);
           }
 
@@ -367,30 +366,14 @@
           console.log('[MapTab] 開始繪製地圖，國家數量:', countries.features?.length);
 
           // 先繪製地圖外框（投影邊界）
-          // Stereographic 使用方形邊框，其他投影使用球體邊界
-          if (currentProjectionType.value === 'Stereographic') {
-            // 繪製方形邊框
-            const rect = mapContainer.value.getBoundingClientRect();
-            const padding = 32;
-            g.append('rect')
-              .attr('class', 'sphere')
-              .attr('x', padding)
-              .attr('y', padding)
-              .attr('width', rect.width - padding * 2)
-              .attr('height', rect.height - padding * 2)
-              .attr('fill', 'none')
-              .attr('stroke', '#999999')
-              .attr('stroke-width', 2);
-          } else {
-            // 其他投影使用圓形/球體邊界
-            g.append('path')
-              .datum({ type: 'Sphere' })
-              .attr('class', 'sphere')
-              .attr('d', path)
-              .attr('fill', 'none')
-              .attr('stroke', '#999999')
-              .attr('stroke-width', 2);
-          }
+          // 所有投影都使用圓形/球體邊界
+          g.append('path')
+            .datum({ type: 'Sphere' })
+            .attr('class', 'sphere')
+            .attr('d', path)
+            .attr('fill', 'none')
+            .attr('stroke', '#999999')
+            .attr('stroke-width', 2);
 
           // 繪製經緯線網格
           const gridData = generateGridLines();
@@ -460,29 +443,14 @@
         // 先移除舊的邊框
         g.select('.sphere').remove();
 
-        // 根據投影類型繪製新的邊框
-        if (currentProjectionType.value === 'Stereographic') {
-          // 繪製方形邊框
-          const padding = 32;
-          g.insert('rect', ':first-child')
-            .attr('class', 'sphere')
-            .attr('x', padding)
-            .attr('y', padding)
-            .attr('width', width - padding * 2)
-            .attr('height', height - padding * 2)
-            .attr('fill', 'none')
-            .attr('stroke', '#999999')
-            .attr('stroke-width', 2);
-        } else {
-          // 其他投影使用圓形/球體邊界
-          g.insert('path', ':first-child')
-            .datum({ type: 'Sphere' })
-            .attr('class', 'sphere')
-            .attr('d', path)
-            .attr('fill', 'none')
-            .attr('stroke', '#999999')
-            .attr('stroke-width', 2);
-        }
+        // 所有投影都使用圓形/球體邊界
+        g.insert('path', ':first-child')
+          .datum({ type: 'Sphere' })
+          .attr('class', 'sphere')
+          .attr('d', path)
+          .attr('fill', 'none')
+          .attr('stroke', '#999999')
+          .attr('stroke-width', 2);
 
         // 更新經緯線網格
         g.selectAll('path.grid-line').attr('d', path);
