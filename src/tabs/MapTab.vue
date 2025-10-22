@@ -51,7 +51,7 @@
       const currentScale = ref(80);
 
       // ConicConformal 投影的放大倍率
-      const conicConformalScale = ref(1000);
+      const conicConformalScale = ref(5000);
 
       // 圓圈現在使用 D3.js 繪製，不需要大小計算函數
 
