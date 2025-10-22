@@ -90,8 +90,8 @@
             proj = d3
               .geoConicConformal()
               .parallels([20, 60]) // 標準緯線：北緯20° 和 60°
-              .rotate([0, 0]) // 旋轉
-              .center([0, 40]); // 中心點 [經度, 緯度] (經度0°，北緯40°)
+              .rotate([-120, 0]) // 旋轉：讓東經120度成為中心線
+              .center([120, 40]); // 中心點 [經度, 緯度] (東經120°，北緯40°)
             break;
           case 'ConicEqualArea':
             proj = d3.geoConicEqualArea().parallels([20, 60]);
