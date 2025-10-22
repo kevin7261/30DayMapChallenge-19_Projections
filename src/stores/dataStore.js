@@ -123,56 +123,7 @@ export const useDataStore = defineStore(
     const homeCountry = ref('Taiwan');
 
     /**
-     * 🌍 已造訪國家列表 (Visited Countries List)
-     *
-     * 這些國家在地圖上會以淺藍色標示
-     * 名稱需與 GeoJSON 中的 properties.NAME 欄位完全匹配
-     * 按英文字母順序排列
-     * 注意：微型國家（列支敦士登、聖馬利諾、教廷、摩納哥、安道爾、馬爾他）
-     * 在此低解析度地圖中不存在
-     */
-    const visitedCountries = ref([
-      'Australia',
-      'Austria',
-      'Belgium',
-      'China',
-      'Czechia',
-      'Denmark',
-      'Estonia',
-      'Finland',
-      'France',
-      'Germany',
-      'Greece',
-      'Greenland',
-      'Hungary',
-      'Iceland',
-      'Italy',
-      'Japan',
-      'Laos',
-      'Luxembourg',
-      'Malaysia',
-      'Mexico',
-      'Mongolia',
-      'Netherlands',
-      'North Korea',
-      'Norway',
-      'Philippines',
-      'Poland',
-      'Qatar',
-      'Singapore',
-      'Slovakia',
-      'South Korea',
-      'Spain',
-      'Sweden',
-      'Switzerland',
-      'Thailand',
-      'United Kingdom',
-      'United States of America',
-      'Vietnam',
-    ]);
-
-    /**
-     * 🏠 檢查國家是否為台灣 (Check if Country is Taiwan)
+     * 🔍 檢查國家是否為台灣 (Check if Country is Taiwan)
      *
      * @param {string} countryName - 國家名稱（來自 GeoJSON 的 properties.name 或其他屬性）
      * @returns {boolean} 是否為台灣
@@ -180,31 +131,6 @@ export const useDataStore = defineStore(
     const isHomeCountry = (countryName) => {
       if (!countryName) return false;
       return countryName.trim() === homeCountry.value;
-    };
-
-    /**
-     * 🔍 檢查國家是否已造訪 (Check if Country is Visited)
-     *
-     * @param {string} countryName - 國家名稱（來自 GeoJSON 的 properties.name 或其他屬性）
-     * @returns {boolean} 是否為已造訪國家
-     */
-    const isCountryVisited = (countryName) => {
-      if (!countryName) return false;
-
-      // 標準化國家名稱進行比對
-      const normalizedName = countryName.trim();
-
-      return visitedCountries.value.some((visitedCountry) => {
-        // 完全匹配
-        if (normalizedName === visitedCountry) return true;
-
-        // 部分匹配（例如 "United States" 匹配 "United States of America"）
-        if (normalizedName.includes(visitedCountry) || visitedCountry.includes(normalizedName)) {
-          return true;
-        }
-
-        return false;
-      });
     };
 
     /**
@@ -351,8 +277,6 @@ export const useDataStore = defineStore(
       changeProjection, // 切換投影類型
       homeCountry, // 台灣（紅色標示）
       isHomeCountry, // 檢查國家是否為台灣
-      visitedCountries, // 已造訪國家列表
-      isCountryVisited, // 檢查國家是否已造訪
       // 所有圖層都是可見的，所以直接返回所有圖層
       visibleLayers: computed(() => getAllLayers()),
     };
