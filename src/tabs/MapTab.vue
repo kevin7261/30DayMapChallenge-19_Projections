@@ -6,7 +6,7 @@
    * 主要功能：
    * - 使用 D3.js 顯示世界地圖
    * - 提供城市導航功能
-   * - 支援多種投影方式
+   * - 使用麥卡托投影 (Mercator Projection)
    * - 響應式設計
    *
    * 技術架構：
@@ -16,31 +16,39 @@
    * - Bootstrap 5 樣式
    */
 
-  import { ref, onMounted, onUnmounted, watch, nextTick, computed } from 'vue';
+  import { ref, onMounted, onUnmounted, nextTick } from 'vue';
   import * as d3 from 'd3';
   import { useDataStore } from '@/stores/dataStore.js';
-  import { useDefineStore } from '@/stores/defineStore.js';
 
   export default {
     name: 'MapTab',
-    props: {
-      currentCountry: { type: String, default: '國家名稱' },
-    },
     emits: ['map-ready'],
-    setup(props, { emit }) {
+    setup(_, { emit }) {
       // 📦 存儲實例
       const dataStore = useDataStore();
-      const defineStore = useDefineStore();
 
       // 🗺️ 地圖相關變數
       const mapContainer = ref(null);
-      const svgElement = ref(null);
       let svg = null;
       let projection = null;
       let path = null;
       let zoom = null;
       let g = null;
-      let ringsGroup = null;
+      let tooltipDiv = null;
+
+      // 🎨 從 CSS 變數獲取顏色
+      const getColorFromCSS = (varName) => {
+        return getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
+      };
+
+      const colors = {
+        participant: getColorFromCSS('--map-country-participant'),
+        withdrawn: getColorFromCSS('--map-country-withdrawn'),
+        nonParticipant: getColorFromCSS('--map-country-non-participant'),
+        other: getColorFromCSS('--map-country-other'),
+        border: getColorFromCSS('--map-country-border'),
+        background: getColorFromCSS('--map-background'),
+      };
 
       // 🎛️ 地圖控制狀態
       const isMapReady = ref(false);
@@ -48,26 +56,6 @@
 
       // 世界地圖數據
       const worldData = ref(null);
-
-      // 圓圈現在使用 D3.js 繪製，不需要大小計算函數
-
-      // 📊 計算屬性：檢查是否有任何圖層可見
-      const isAnyLayerVisible = computed(() => dataStore.getAllLayers().length > 0);
-
-      // 🏙️ 當前國家信息
-      const currentCountryInfo = computed(() => {
-        if (!props.currentCountry) {
-          return null;
-        }
-
-        const allLayers = dataStore.getAllLayers();
-        const countryLayer = allLayers.find((layer) => layer.layerName === props.currentCountry);
-        if (countryLayer) {
-          return {};
-        } else {
-          return null;
-        }
-      });
 
       /**
        * 📥 載入世界地圖數據
@@ -99,7 +87,7 @@
        * 初始化 D3 地圖並設定基本配置
        */
       const createMap = () => {
-        if (!mapContainer.value) return false;
+        if (!mapContainer.value || !worldData.value) return false;
 
         const rect = mapContainer.value.getBoundingClientRect();
         if (rect.width === 0 || rect.height === 0) {
@@ -117,24 +105,50 @@
             .append('svg')
             .attr('width', width)
             .attr('height', height)
-            .style('background', '#f0f0f0');
+            .style('background', colors.background);
 
-          svgElement.value = svg.node();
+          // 建立滑鼠提示框 (tooltip)
+          d3.select(mapContainer.value).style('position', 'relative');
+          tooltipDiv = d3
+            .select(mapContainer.value)
+            .append('div')
+            .attr('class', 'map-tooltip')
+            .style('position', 'absolute')
+            .style('pointer-events', 'none')
+            .style('visibility', 'hidden')
+            .style('z-index', '10');
 
-          // 創建投影 - 使用方位等距投影 (Azimuthal Equidistant Projection)
-          // 預設以台灣地理中心為投影中心
-          // 添加32px padding，確保地圖不會貼邊
-          const padding = 32;
-          const availableWidth = width - padding * 2;
-          const availableHeight = height - padding * 2;
-          const scale = Math.min(availableWidth, availableHeight) / 6;
+          // 創建投影 - 使用麥卡托投影 (Mercator Projection)
+          // 限制顯示範圍到北緯75度、南緯65度
+          const northLatLimit = 75; // 北緯限制
+          const southLatLimit = -65; // 南緯限制
+
+          // 創建限制範圍的 GeoJSON（北緯75度、南緯65度）
+          const limitedBounds = {
+            type: 'FeatureCollection',
+            features: [
+              {
+                type: 'Feature',
+                geometry: {
+                  type: 'Polygon',
+                  coordinates: [
+                    [
+                      [-180, southLatLimit],
+                      [180, southLatLimit],
+                      [180, northLatLimit],
+                      [-180, northLatLimit],
+                      [-180, southLatLimit],
+                    ],
+                  ],
+                },
+              },
+            ],
+          };
 
           projection = d3
-            .geoAzimuthalEquidistant()
-            .rotate([-120.982025, -23.973875]) // 以台灣地理中心為中心
-            .scale(scale) // 使用計算後的縮放比例
-            .translate([width / 2, height / 2])
-            .clipAngle(180);
+            .geoMercator()
+            .center([0, 0]) // 以旋轉後的中央經線與赤道交點為中心
+            .fitSize([width, height], limitedBounds); // 使用限制範圍進行縮放
 
           // 創建路徑生成器
           path = d3.geoPath().projection(projection);
@@ -152,12 +166,11 @@
 
           isMapReady.value = true;
 
-          // 將地圖實例和方法一起傳遞
+          // 將地圖實例傳遞給父組件
           const mapInterface = {
             svg,
             projection,
             path,
-            navigateToLocation: (center) => navigateToLocation(center),
           };
 
           emit('map-ready', mapInterface);
@@ -168,65 +181,6 @@
           console.error('[MapTab] D3 地圖創建失敗:', error);
           return false;
         }
-      };
-
-      /**
-       * 🔵 繪製以投影中心為圓心的同心距離圓
-       * 每 5000 公里一圈，淺灰虛線，永遠位於地圖上層
-       * 最多繪製到 15000 公里（3 圈）
-       * 地球邊界（180°）繪製實線圓圈
-       */
-      const drawDistanceRings = () => {
-        if (!svg || !projection || !mapContainer.value) return;
-
-        const [cx, cy] = projection.translate();
-        const scale = projection.scale();
-
-        // 以公尺為單位的地球半徑與步長（5000 公里）
-        const earthRadiusMeters = 6371008.8;
-        const stepMeters = 5000000; // 5000 km
-        const maxDistanceMeters = 15000000; // 15000 km
-
-        // 計算需要的圈數與對應像素半徑（r = scale * (distance / R)）
-        const rings = [];
-        for (let i = 1; i <= 3; i++) {
-          const distanceMeters = stepMeters * i;
-          if (distanceMeters > maxDistanceMeters) break;
-          const radiusPx = scale * (distanceMeters / earthRadiusMeters);
-          rings.push({ index: i, radiusPx, type: 'distance' });
-        }
-
-        // 加入地球邊界圓（180° = π * R，在方位等距投影中對應到 scale * π）
-        const earthBoundaryRadiusPx = scale * Math.PI;
-        rings.push({ index: 999, radiusPx: earthBoundaryRadiusPx, type: 'boundary' });
-
-        if (!ringsGroup) {
-          ringsGroup = svg
-            .append('g')
-            .attr('class', 'rings-overlay')
-            .style('pointer-events', 'none');
-        }
-
-        // 確保在最上層
-        ringsGroup.raise();
-
-        // 資料繫結與繪製
-        const selection = ringsGroup.selectAll('circle.ring').data(rings, (d) => d.index);
-
-        selection
-          .enter()
-          .append('circle')
-          .attr('class', 'ring')
-          .attr('fill', 'none')
-          .merge(selection)
-          .attr('cx', cx)
-          .attr('cy', cy)
-          .attr('r', (d) => d.radiusPx)
-          .attr('stroke', (d) => (d.type === 'boundary' ? '#666666' : '#cccccc'))
-          .attr('stroke-width', (d) => (d.type === 'boundary' ? 2 : 1))
-          .attr('stroke-dasharray', (d) => (d.type === 'boundary' ? 'none' : '6,6'));
-
-        selection.exit().remove();
       };
 
       /**
@@ -244,23 +198,45 @@
           console.log('[MapTab] 開始繪製地圖，國家數量:', countries.features?.length);
 
           // 繪製國家邊界
-          g.selectAll('path')
+          const countryPaths = g
+            .selectAll('path')
             .data(countries.features)
             .enter()
             .append('path')
             .attr('d', path)
             .attr('fill', (d) => {
-              // 檢查國家顏色：台灣(紅色) > 已造訪(淺藍色) > 其他(淺灰色)
-              const countryName = d.properties.name || d.properties.ADMIN || d.properties.NAME;
-              if (dataStore.isHomeCountry(countryName)) return '#ff9999'; // 台灣：紅色
-              if (dataStore.isCountryVisited(countryName)) return '#cce5ff'; // 已造訪：淺藍色
-              return '#d0d0d0'; // 其他：淺灰色
+              // 檢查國家顏色：未參與 > 退出 > 參與 > 其他
+              // 嚴格使用 GeoJSON 提供的正式名稱（優先 NAME）
+              const countryName = d.properties?.NAME || d.properties?.ADMIN || d.properties?.name;
+              if (dataStore.isNonParticipantCountry(countryName)) return colors.nonParticipant;
+              if (dataStore.isWithdrawnCountry(countryName)) return colors.withdrawn;
+              if (dataStore.isParticipantCountry(countryName)) return colors.participant;
+              return colors.other;
             })
-            .attr('stroke', '#666666')
+            .attr('stroke', colors.border)
             .attr('stroke-width', 0.5)
-            .attr('class', 'country');
+            .attr('class', 'country')
+            .style('cursor', 'pointer');
 
-          // 距離圓圈功能已移除
+          // 滑鼠事件：顯示國名 tooltip
+          countryPaths
+            .on('mouseover', (event, d) => {
+              const countryName = d.properties?.NAME || d.properties?.ADMIN || d.properties?.name;
+              if (tooltipDiv) {
+                tooltipDiv.style('visibility', 'visible').text(countryName || 'Unknown');
+              }
+            })
+            .on('mousemove', (event) => {
+              if (tooltipDiv) {
+                const [x, y] = d3.pointer(event, mapContainer.value);
+                tooltipDiv.style('left', `${x + 12}px`).style('top', `${y + 12}px`);
+              }
+            })
+            .on('mouseout', () => {
+              if (tooltipDiv) {
+                tooltipDiv.style('visibility', 'hidden');
+              }
+            });
 
           console.log('[MapTab] 世界地圖繪製完成，已繪製', countries.features?.length, '個國家');
         } catch (error) {
@@ -268,38 +244,63 @@
         }
       };
 
-      // addCityMarkers 函數已移除 - 不再需要城市標記
-
       /**
-       * 🌍 導航到指定位置
-       * 使用方位等距投影，將選定的國家設為地圖中心
-       * 地球大小保持不變，只改變旋轉中心
+       * 🔴 繪製微型國家圓圈標記
+       * 為那些在低解析度地圖中不存在的微型國家繪製圓圈
+       * 參展：淡藍色 / 未造訪：灰色
        */
-      const navigateToLocation = (center) => {
-        if (!svg || !projection) return;
+      const drawMicroStates = () => {
+        if (!g || !projection) {
+          console.error('[MapTab] 無法繪製微型國家: g=', !!g, 'projection=', !!projection);
+          return;
+        }
 
-        const rect = mapContainer.value.getBoundingClientRect();
-        const width = rect.width;
-        const height = rect.height;
+        try {
+          console.log('[MapTab] 開始繪製微型國家圓圈，總數量:', dataStore.microStates.length);
 
-        // 方位等距投影：使用 rotate 將選定位置旋轉到中心
-        // rotate 接受 [lambda, phi, gamma]，其中 lambda 和 phi 是經緯度的負值
-        // 地球大小保持固定，不隨導航改變
-        // 添加32px padding，確保地圖不會貼邊
-        const padding = 32;
-        const availableWidth = width - padding * 2;
-        const availableHeight = height - padding * 2;
-        const scale = Math.min(availableWidth, availableHeight) / 6;
+          // 繪製所有微型國家的圓圈標記
+          const microMarkers = g
+            .selectAll('.micro-state-marker')
+            .data(dataStore.microStates)
+            .enter()
+            .append('circle')
+            .attr('class', 'micro-state-marker')
+            .attr('cx', (d) => projection(d.coordinates)[0])
+            .attr('cy', (d) => projection(d.coordinates)[1])
+            .attr('r', 3) // 圓圈半徑
+            .attr('fill', (d) => {
+              // 檢查微型國家顏色：未參與 > 退出 > 參與 > 其他
+              if (dataStore.isNonParticipantCountry(d.name)) return colors.nonParticipant;
+              if (dataStore.isWithdrawnCountry(d.name)) return colors.withdrawn;
+              if (dataStore.isParticipantCountry(d.name)) return colors.participant;
+              return colors.other;
+            })
+            .attr('stroke', colors.border)
+            .attr('stroke-width', 1)
+            .style('cursor', 'pointer');
 
-        projection.rotate([-center[0], -center[1]]).scale(scale);
+          microMarkers
+            .on('mouseover', (event, d) => {
+              if (tooltipDiv) {
+                tooltipDiv.style('visibility', 'visible').text(d.name);
+              }
+            })
+            .on('mousemove', (event) => {
+              if (tooltipDiv) {
+                const [x, y] = d3.pointer(event, mapContainer.value);
+                tooltipDiv.style('left', `${x + 12}px`).style('top', `${y + 12}px`);
+              }
+            })
+            .on('mouseout', () => {
+              if (tooltipDiv) {
+                tooltipDiv.style('visibility', 'hidden');
+              }
+            });
 
-        // 更新所有路徑
-        g.selectAll('path.country').attr('d', path);
-
-        // 重新繪製距離圓
-        drawDistanceRings();
-
-        console.log('[MapTab] 地圖導航完成，中心:', center);
+          console.log('[MapTab] 微型國家圓圈繪製完成');
+        } catch (error) {
+          console.error('[MapTab] 微型國家圓圈繪製失敗:', error);
+        }
       };
 
       /**
@@ -307,7 +308,7 @@
        * 當容器大小改變時重新計算地圖尺寸
        */
       const invalidateSize = () => {
-        if (!svg || !mapContainer.value) return;
+        if (!svg || !mapContainer.value || !worldData.value) return;
 
         const rect = mapContainer.value.getBoundingClientRect();
         const width = rect.width;
@@ -315,19 +316,38 @@
 
         svg.attr('width', width).attr('height', height);
 
-        // 添加32px padding，確保地圖不會貼邊
-        const padding = 32;
-        const availableWidth = width - padding * 2;
-        const availableHeight = height - padding * 2;
-        const scale = Math.min(availableWidth, availableHeight) / 6;
-
-        projection.translate([width / 2, height / 2]).scale(scale);
+        // 自動調整投影以適應新的容器尺寸（限制到北緯75度、南緯65度）
+        const northLatLimit = 75; // 北緯限制
+        const southLatLimit = -60; // 南緯限制
+        const limitedBounds = {
+          type: 'FeatureCollection',
+          features: [
+            {
+              type: 'Feature',
+              geometry: {
+                type: 'Polygon',
+                coordinates: [
+                  [
+                    [-180, southLatLimit],
+                    [180, southLatLimit],
+                    [180, northLatLimit],
+                    [-180, northLatLimit],
+                    [-180, southLatLimit],
+                  ],
+                ],
+              },
+            },
+          ],
+        };
+        projection.fitSize([width, height], limitedBounds);
 
         // 更新所有路徑
         g.selectAll('path.country').attr('d', path);
 
-        // 重新繪製距離圓
-        drawDistanceRings();
+        // 清除舊的微型國家圓圈
+        g.selectAll('.micro-state-marker').remove();
+        // 重新繪製微型國家圓圈標記
+        drawMicroStates();
 
         console.log('[MapTab] 地圖尺寸更新完成');
       };
@@ -359,8 +379,8 @@
           if (createMap()) {
             console.log('[MapTab] 地圖創建成功，開始繪製世界地圖');
             await drawWorldMap();
-            // 繪製距離圓（置於最上層）
-            drawDistanceRings();
+            // 繪製微型國家圓圈標記
+            drawMicroStates();
           } else {
             console.log('[MapTab] 地圖創建失敗，100ms 後重試');
             setTimeout(tryCreateMap, 100);
@@ -415,6 +435,11 @@
           svg = null;
         }
 
+        if (tooltipDiv) {
+          tooltipDiv.remove();
+          tooltipDiv = null;
+        }
+
         projection = null;
         path = null;
         zoom = null;
@@ -422,41 +447,11 @@
         isMapReady.value = false;
       });
 
-      // 👀 監聽器：監聽資料存儲中的圖層變化
-      watch(
-        () => dataStore.layers,
-        () => {
-          if (isMapReady.value) {
-            // 距離圓圈功能已移除
-          }
-        },
-        { deep: true }
-      );
-
-      // 👀 監聽器：監聽當前國家變化
-      watch(
-        () => props.currentCountry,
-        (newCountry) => {
-          if (isMapReady.value && newCountry) {
-            // currentCountry 是 layerName，需要找到對應的圖層
-            const allLayers = dataStore.getAllLayers();
-            const layer = allLayers.find((l) => l.layerName === newCountry);
-            if (layer) {
-              navigateToLocation(layer.center);
-            }
-          }
-        }
-      );
-
       // 📤 返回組件公開的屬性和方法
       return {
         mapContainer,
         mapContainerId,
-        isAnyLayerVisible,
-        currentCountryInfo,
         invalidateSize,
-        defineStore,
-        navigateToLocation,
       };
     },
   };
@@ -477,14 +472,12 @@
     overflow: hidden;
   }
 
-  /* 距離圓圈現在使用 D3.js 繪製，不需要 CSS 樣式 */
-
   :deep(.country) {
-    transition: fill 0.2s ease;
+    transition: filter 0.2s ease;
   }
 
   :deep(.country:hover) {
-    fill: #c0c0c0;
+    filter: brightness(1.2);
   }
 
   :deep(.city-marker) {
@@ -493,5 +486,14 @@
 
   :deep(.city-marker:hover) {
     r: 6;
+  }
+
+  /* 微型國家圓圈標記樣式 */
+  :deep(.micro-state-marker) {
+    transition: all 0.2s ease;
+  }
+
+  :deep(.micro-state-marker:hover) {
+    filter: brightness(1.2);
   }
 </style>

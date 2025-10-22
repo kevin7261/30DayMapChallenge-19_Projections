@@ -200,3 +200,17 @@ body {
   background-color: rgba(255, 255, 255, 0.2) !important;
   color: var(--my-color-white) !important;
 }
+
+/* =============================================================================
+     🏷️ 地圖滑鼠提示樣式 (Map Tooltip Styles)
+     ============================================================================= */
+.map-tooltip {
+  padding: 4px 8px;
+  background-color: rgba(0, 0, 0, 0.75);
+  color: #fff;
+  border-radius: 4px;
+  font-size: 12px;
+  line-height: 1.2;
+  white-space: nowrap;
+  transform: translateZ(0);
+}

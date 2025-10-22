@@ -28,11 +28,11 @@ const routes = [
  *
  * 配置說明：
  * - history: 使用 HTML5 History API 模式
- * - base: 設定應用程式的基礎路徑為 '/30DayMapChallenge-04_Data-challenge-My-Data/'
+ * - base: 設定應用程式的基礎路徑為 '/30DayMapChallenge-19_Projections/'
  * - routes: 路由配置陣列
  */
 const router = createRouter({
-  history: createWebHistory('/30DayMapChallenge-04_Data-challenge-My-Data/'),
+  history: createWebHistory('/30DayMapChallenge-19_Projections/'),
   routes,
 });
 
