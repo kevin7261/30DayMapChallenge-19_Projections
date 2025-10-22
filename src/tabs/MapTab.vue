@@ -84,12 +84,12 @@
             break;
           case 'ConicConformal':
             // 修正 Conic Conformal 投影：標準圓錐投影，經線為直線
-            // 使用標準緯線 20° 和 60°，中央經線 0°，中心緯度 40°
+            // 使用標準緯線 33° 和 45°，中心點設為東經120度、北緯0度（台灣附近）
             proj = d3
               .geoConicConformal()
-              .scale(800) // 設定縮放比例
-              .center([0, 40]) // 中心點 [經度, 緯度]
-              .parallels([20, 60]) // 設定兩條標準緯線
+              .scale(Math.min(width, height) * 0.8) // 設定縮放比例（縮小一點）
+              .center([120, 0]) // 中心點 [經度, 緯度] (東經120度、北緯0度)
+              .parallels([33, 45]) // 標準緯線：33° 和 45°
               .rotate([0, 0]) // 旋轉
               .translate([width / 2, height / 2]); // 將地圖中心平移到 SVG 中心
             break;
@@ -124,7 +124,7 @@
           // 大部分投影類型將中心點設為東經120度、北緯0度
           proj.rotate([-120, 0, 0]);
         }
-        // ConicConformal 投影：已經在投影定義中設定了 center 和 rotate，不需要額外設定
+        // ConicConformal 投影已經在投影定義中設定了中心點，不需要額外的旋轉
 
         // 根據投影類型選擇適當的 fit 目標
         try {
@@ -132,8 +132,8 @@
             // Stereographic 投影：使用完整地球球體，讓投影自然填滿方形視野
             proj.fitExtent(extent, { type: 'Sphere' });
           } else if (type === 'ConicConformal') {
-            // Conic Conformal 投影：已經手動設定了所有參數，跳過 fitExtent
-            // 不需要額外的 fitExtent 調用
+            // Conic Conformal 投影：已經在投影定義中設定了縮放和平移，不需要 fitExtent
+            // 投影已經配置完成，不需要額外處理
           } else {
             // 其他投影使用球體
             proj.center([0, 0]).fitExtent(extent, { type: 'Sphere' });
@@ -191,11 +191,11 @@
             .attr('stroke-width', 2);
         }
 
-        // 更新經緯線網格
-        g.selectAll('path.grid-line').attr('d', path);
-
         // 更新所有國家路徑
         g.selectAll('path.country').attr('d', path);
+
+        // 更新經緯線網格（確保在上層）
+        g.selectAll('path.grid-line').attr('d', path);
 
         // 移除距離圓圈繪製
 
@@ -370,20 +370,7 @@
             .attr('stroke', '#999999')
             .attr('stroke-width', 2);
 
-          // 繪製經緯線網格
-          const gridData = generateGridLines();
-          g.selectAll('path.grid-line')
-            .data(gridData.features)
-            .enter()
-            .append('path')
-            .attr('class', 'grid-line')
-            .attr('d', path)
-            .attr('fill', 'none')
-            .attr('stroke', '#666666')
-            .attr('stroke-width', 2)
-            .attr('opacity', 1);
-
-          // 繪製國家邊界
+          // 繪製國家邊界（先繪製，作為底層）
           g.selectAll('path.country')
             .data(countries.features)
             .enter()
@@ -398,6 +385,20 @@
             .attr('stroke', '#666666')
             .attr('stroke-width', 0.5)
             .attr('class', 'country');
+
+          // 繪製經緯線網格（後繪製，顯示在上層）
+          const gridData = generateGridLines();
+          g.selectAll('path.grid-line')
+            .data(gridData.features)
+            .enter()
+            .append('path')
+            .attr('class', 'grid-line')
+            .attr('d', path)
+            .attr('fill', 'none')
+            .attr('stroke', '#999999')
+            .attr('stroke-width', 1)
+            .attr('opacity', 0.8)
+            .attr('stroke-dasharray', '2,2');
 
           // 距離圓圈功能已移除
 
@@ -447,11 +448,11 @@
           .attr('stroke', '#999999')
           .attr('stroke-width', 2);
 
-        // 更新經緯線網格
-        g.selectAll('path.grid-line').attr('d', path);
-
         // 更新所有國家路徑
         g.selectAll('path.country').attr('d', path);
+
+        // 更新經緯線網格（確保在上層）
+        g.selectAll('path.grid-line').attr('d', path);
 
         // 不再繪製距離圓
 
@@ -617,5 +618,15 @@
 
   :deep(.city-marker:hover) {
     r: 6;
+  }
+
+  :deep(.grid-line) {
+    transition: opacity 0.3s ease;
+  }
+
+  :deep(.grid-line:hover) {
+    opacity: 1 !important;
+    stroke-width: 2 !important;
+    stroke: #333333 !important;
   }
 </style>
