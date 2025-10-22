@@ -67,7 +67,7 @@ export const useDataStore = defineStore(
             layerId: 'Stereographic',
             layerName: 'Stereographic',
             type: 'Stereographic',
-            scale: 100,
+            scale: 80,
           },
           {
             layerId: 'Albers',

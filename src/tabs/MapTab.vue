@@ -78,7 +78,8 @@
             proj = d3.geoOrthographic();
             break;
           case 'Stereographic':
-            proj = d3.geoStereographic();
+            // 與其他方位投影一致，將可視範圍裁成半球，確保外接圓大小可一致 fit
+            proj = d3.geoStereographic().clipAngle(90);
             break;
           case 'Albers':
             proj = d3.geoAlbers().parallels([20, 60]);
@@ -114,13 +115,8 @@
         ];
 
         // 針對不同投影類型設定不同的中心點
-        if (
-          type === 'Mercator' ||
-          type === 'TransverseMercator' ||
-          type === 'Equirectangular' ||
-          type === 'ConicConformal'
-        ) {
-          // 圓柱投影和 ConicConformal 使用標準配置，不旋轉
+        if (type === 'Mercator' || type === 'Equirectangular') {
+          // 圓柱投影使用標準配置，不旋轉
           // 不設定 rotate，讓投影保持標準配置
         } else {
           // 其他投影類型將台灣置於投影中心方向
@@ -129,14 +125,22 @@
 
         // 以球體作為目標做 fitExtent，統一保留 32px 邊距
         try {
-          // 明確設置中心在 (0,0)，確保圓柱與圓錐投影基準一致
-          proj.center([0, 0]).fitExtent(extent, { type: 'Sphere' });
+          // 對於 Stereographic 投影，使用縮放比例
+          if (type === 'Stereographic') {
+            // Stereographic 投影使用縮放比例，讓地圖顯示得更小
+            const radius = Math.min(width, height) / 2 - padding;
+            const scaleFactor = 0.8; // 縮小到80%
+            proj.scale(radius * scaleFactor).translate([width / 2, height / 2]);
+          } else {
+            // 其他投影使用標準 fitExtent
+            proj.center([0, 0]).fitExtent(extent, { type: 'Sphere' });
+          }
         } catch (e) {
           // eslint-disable-next-line no-console
           console.error('[MapTab] fitExtent 失敗:', e);
         }
 
-        // 統一縮放策略：使用 fitExtent 的結果，不再套用任何比例係數
+        // 統一縮放策略：所有方位投影的外接圓大小一致；不再對 Stereographic 另行縮放
         const fittedScale = proj.scale();
         proj.scale(fittedScale);
 
@@ -162,6 +166,9 @@
 
         // 更新地圖外框
         g.select('path.sphere').attr('d', path);
+
+        // 更新經緯線網格
+        g.selectAll('path.grid-line').attr('d', path);
 
         // 更新所有國家路徑
         g.selectAll('path.country').attr('d', path);
@@ -264,6 +271,55 @@
       };
 
       /**
+       * 🌐 生成經緯線網格數據
+       * 生成每30度的經線和緯線
+       */
+      const generateGridLines = () => {
+        const gridLines = [];
+
+        // 生成緯線 (每30度一條，從-60到60度)
+        for (let lat = -60; lat <= 60; lat += 30) {
+          const line = {
+            type: 'Feature',
+            geometry: {
+              type: 'LineString',
+              coordinates: [],
+            },
+          };
+
+          // 每條緯線由多個點組成，從-180到180度經度
+          for (let lon = -180; lon <= 180; lon += 1) {
+            line.geometry.coordinates.push([lon, lat]);
+          }
+
+          gridLines.push(line);
+        }
+
+        // 生成經線 (每30度一條，從-180到180度)
+        for (let lon = -180; lon <= 180; lon += 30) {
+          const line = {
+            type: 'Feature',
+            geometry: {
+              type: 'LineString',
+              coordinates: [],
+            },
+          };
+
+          // 每條經線由多個點組成，從-80到80度緯度
+          for (let lat = -80; lat <= 80; lat += 1) {
+            line.geometry.coordinates.push([lon, lat]);
+          }
+
+          gridLines.push(line);
+        }
+
+        return {
+          type: 'FeatureCollection',
+          features: gridLines,
+        };
+      };
+
+      /**
        * 🎨 繪製世界地圖
        */
       const drawWorldMap = async () => {
@@ -285,6 +341,19 @@
             .attr('fill', 'none')
             .attr('stroke', '#999999')
             .attr('stroke-width', 2);
+
+          // 繪製經緯線網格
+          const gridData = generateGridLines();
+          g.selectAll('path.grid-line')
+            .data(gridData.features)
+            .enter()
+            .append('path')
+            .attr('class', 'grid-line')
+            .attr('d', path)
+            .attr('fill', 'none')
+            .attr('stroke', '#666666')
+            .attr('stroke-width', 2)
+            .attr('opacity', 1);
 
           // 繪製國家邊界
           g.selectAll('path.country')
@@ -339,6 +408,9 @@
 
         // 更新地圖外框
         g.select('path.sphere').attr('d', path);
+
+        // 更新經緯線網格
+        g.selectAll('path.grid-line').attr('d', path);
 
         // 更新所有國家路徑
         g.selectAll('path.country').attr('d', path);
