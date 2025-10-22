@@ -86,12 +86,12 @@
             proj = d3.geoAlbers().parallels([20, 60]);
             break;
           case 'ConicConformal':
-            // 重新設計 Conic Conformal 投影：標準圓錐投影，不顯示南極
+            // 重新設計 Conic Conformal 投影：標準圓錐投影，北極在畫面正中間
             proj = d3
               .geoConicConformal()
               .parallels([20, 60]) // 標準緯線：北緯20° 和 60°
               .rotate([-120, 0]) // 旋轉：讓東經120度成為中心線
-              .center([120, 40]); // 中心點 [經度, 緯度] (東經120°，北緯40°)
+              .center([120, 90]); // 中心點 [經度, 緯度] (東經120°，北緯90°)
             break;
           case 'ConicEqualArea':
             proj = d3.geoConicEqualArea().parallels([20, 60]);
