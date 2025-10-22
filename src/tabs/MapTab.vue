@@ -19,7 +19,6 @@
   import { ref, onMounted, onUnmounted, watch, nextTick, computed } from 'vue';
   import * as d3 from 'd3';
   import { useDataStore } from '@/stores/dataStore.js';
-  import { useDefineStore } from '@/stores/defineStore.js';
 
   export default {
     name: 'MapTab',
@@ -30,7 +29,6 @@
     setup(props, { emit }) {
       // 📦 存儲實例
       const dataStore = useDataStore();
-      const defineStore = useDefineStore();
 
       // 🗺️ 地圖相關變數
       const mapContainer = ref(null);
@@ -61,7 +59,7 @@
        * 🗺️ 創建投影
        * 根據投影類型創建對應的 D3.js 投影，並自動適應版面大小
        */
-      const createProjection = (type, width, height, baseScale) => {
+      const createProjection = (type, width, height) => {
         const taiwanCenter = [120.982025, 23.973875];
         let proj;
 
@@ -70,6 +68,7 @@
             proj = d3.geoAzimuthalEqualArea();
             break;
           case 'AzimuthalEquidistant':
+            // 與 AzimuthalEqualArea 使用相同的外接圓策略（fitExtent 會統一大小）
             proj = d3.geoAzimuthalEquidistant();
             break;
           case 'Gnomonic':
@@ -85,7 +84,8 @@
             proj = d3.geoAlbers().parallels([20, 60]);
             break;
           case 'ConicConformal':
-            proj = d3.geoConicConformal().parallels([30, 60]);
+            // 使用常見的標準緯線組合，並保留標準中心（0,0）
+            proj = d3.geoConicConformal().parallels([20, 40]);
             break;
           case 'ConicEqualArea':
             proj = d3.geoConicEqualArea().parallels([20, 60]);
@@ -127,38 +127,18 @@
           proj.rotate([-taiwanCenter[0], -taiwanCenter[1], 0]);
         }
 
-        // 使用世界資料做 fitExtent，確保完整顯示且留出邊距
-        if (worldData.value) {
-          try {
-            proj.fitExtent(extent, worldData.value);
-          } catch (e) {
-            // eslint-disable-next-line no-console
-            console.error('[MapTab] fitExtent 失敗:', e);
-          }
+        // 以球體作為目標做 fitExtent，統一保留 32px 邊距
+        try {
+          // 明確設置中心在 (0,0)，確保圓柱與圓錐投影基準一致
+          proj.center([0, 0]).fitExtent(extent, { type: 'Sphere' });
+        } catch (e) {
+          // eslint-disable-next-line no-console
+          console.error('[MapTab] fitExtent 失敗:', e);
         }
 
-        // 使用 fitExtent 的結果，不額外縮小
+        // 統一縮放策略：使用 fitExtent 的結果，不再套用任何比例係數
         const fittedScale = proj.scale();
-        let adjustedScale = fittedScale;
-
-        // 只針對特定投影類型進行微調
-        if (type === 'AzimuthalEquidistant') {
-          adjustedScale = fittedScale * 1.2; // 稍微放大
-        } else if (type === 'Mercator') {
-          adjustedScale = fittedScale * 1.1; // 稍微放大
-        } else if (type === 'TransverseMercator') {
-          adjustedScale = fittedScale * 1.1; // 稍微放大
-        } else if (type === 'ConicConformal') {
-          adjustedScale = fittedScale * 1.0; // 保持原始大小
-        } else if (type === 'Equirectangular') {
-          adjustedScale = fittedScale * 0.9; // 稍微縮小
-        } else {
-          adjustedScale = fittedScale; // 其他投影保持原始大小
-        }
-
-        // 應用基礎縮放比例調整
-        const shrinkFactor = Math.min(1, (baseScale || 100) / 100);
-        proj.scale(adjustedScale * shrinkFactor);
+        proj.scale(fittedScale);
 
         return proj;
       };
@@ -177,10 +157,13 @@
         const width = rect.width;
         const height = rect.height;
 
-        projection = createProjection(type, width, height, scale);
+        projection = createProjection(type, width, height);
         path = d3.geoPath().projection(projection);
 
-        // 更新所有路徑
+        // 更新地圖外框
+        g.select('path.sphere').attr('d', path);
+
+        // 更新所有國家路徑
         g.selectAll('path.country').attr('d', path);
 
         // 移除距離圓圈繪製
@@ -243,12 +226,7 @@
 
           // 創建投影 - 使用參數化的投影類型
           // 預設以台灣地理中心為投影中心，自動適應版面大小
-          projection = createProjection(
-            currentProjectionType.value,
-            width,
-            height,
-            currentScale.value
-          );
+          projection = createProjection(currentProjectionType.value, width, height);
 
           // 創建路徑生成器
           path = d3.geoPath().projection(projection);
@@ -299,8 +277,17 @@
           const countries = worldData.value;
           console.log('[MapTab] 開始繪製地圖，國家數量:', countries.features?.length);
 
+          // 先繪製地圖外框（投影邊界）
+          g.append('path')
+            .datum({ type: 'Sphere' })
+            .attr('class', 'sphere')
+            .attr('d', path)
+            .attr('fill', 'none')
+            .attr('stroke', '#999999')
+            .attr('stroke-width', 2);
+
           // 繪製國家邊界
-          g.selectAll('path')
+          g.selectAll('path.country')
             .data(countries.features)
             .enter()
             .append('path')
@@ -348,15 +335,13 @@
 
         svg.attr('width', width).attr('height', height);
 
-        projection = createProjection(
-          currentProjectionType.value,
-          width,
-          height,
-          currentScale.value
-        );
+        projection = createProjection(currentProjectionType.value, width, height);
         path = d3.geoPath().projection(projection);
 
-        // 更新所有路徑
+        // 更新地圖外框
+        g.select('path.sphere').attr('d', path);
+
+        // 更新所有國家路徑
         g.selectAll('path.country').attr('d', path);
 
         // 不再繪製距離圓
@@ -485,7 +470,6 @@
         mapContainerId,
         isAnyLayerVisible,
         invalidateSize,
-        defineStore,
         navigateToLocation,
         changeProjection,
       };
