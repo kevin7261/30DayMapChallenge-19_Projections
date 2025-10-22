@@ -20,68 +20,96 @@ import { ref, computed } from 'vue';
 export const useDataStore = defineStore(
   'data', // 商店唯一標識符
   () => {
-    // 🎯 固定縮放級別常數
-    const COUNTRY_ZOOM_LEVEL = 16;
     /**
-     * 🗺️ 圖層配置數據 (Layer Configuration Data)
+     * 🗺️ 投影類型配置數據 (Projection Type Configuration Data)
      *
-     * 定義所有可用的地圖圖層，採用分組結構組織，每個圖層包含完整的配置信息。
-     * 使用 ref 創建響應式數據，當圖層狀態改變時會自動更新相關 UI 組件。
+     * 定義所有可用的地圖投影類型，採用分組結構組織，每個投影包含完整的配置信息。
+     * 使用 ref 創建響應式數據，當投影類型改變時會自動更新相關 UI 組件。
      *
-     * 📋 圖層結構說明：
-     * - groupName: 圖層組名稱，用於 UI 分組顯示
-     * - groupLayers: 該組下的所有圖層列表
-     *   - layerId: 圖層唯一標識符
-     *   - layerName: 圖層顯示名稱
-     *   - colorName: 圖層顏色名稱（對應 CSS 變數）
-     *   - geoJsonData: GeoJSON 格式的地理數據
-     *   - loader: 數據載入函數
-     *   - fileName: 數據文件路徑
-     *   - fieldName: 主要字段名稱
-     *   - center: 國家中心座標
-     *   - zoom: 縮放級別
+     * 📋 投影結構說明：
+     * - groupName: 投影組名稱，用於 UI 分組顯示
+     * - groupLayers: 該組下的所有投影列表
+     *   - layerId: 投影唯一標識符
+     *   - layerName: 投影顯示名稱
+     *   - type: D3.js 投影類型名稱
+     *   - scale: 投影縮放比例
      */
     const layers = ref([
       {
-        // 🌍 世界國家地圖集合
-        // 包含各大洲代表性國家的座標點
-        groupName: '世界國家',
+        // 🌍 地圖投影類型集合
+        groupName: '地圖投影',
         groupLayers: [
           {
-            // 🏝️ 台灣國家配置
-            layerId: 'Taiwan', // 圖層唯一標識符
-            layerName: 'TAIWAN', // 圖層顯示名稱
-            center: [120.982025, 23.973875], // 台灣地理中心 [經度, 緯度] 120°58′55.2886″E 23°58′25.9486″N
+            layerId: 'AzimuthalEqualArea',
+            layerName: 'Azimuthal Equal Area',
+            type: 'AzimuthalEqualArea',
+            scale: 100,
           },
           {
-            // 🏛️ 中國國家配置
-            layerId: 'China', // 圖層唯一標識符
-            layerName: 'CHINA', // 圖層顯示名稱
-            center: [116.39162, 39.89898], // 中國中心座標 [經度, 緯度]
+            layerId: 'AzimuthalEquidistant',
+            layerName: 'Azimuthal Equidistant',
+            type: 'AzimuthalEquidistant',
+            scale: 80,
           },
           {
-            // 🏯 日本國家配置
-            layerId: 'Japan', // 圖層唯一標識符
-            layerName: 'JAPAN', // 圖層顯示名稱
-            center: [139.774167, 35.684444], // 日本中心座標 [經度, 緯度]
+            layerId: 'Gnomonic',
+            layerName: 'Gnomonic',
+            type: 'Gnomonic',
+            scale: 100,
           },
           {
-            // 🏛️ 美國國家配置
-            layerId: 'UnitedStates', // 圖層唯一標識符
-            layerName: 'UNITED STATES', // 圖層顯示名稱
-            center: [-77.036548, 38.895108], // 美國中心座標 [經度, 緯度]
+            layerId: 'Orthographic',
+            layerName: 'Orthographic',
+            type: 'Orthographic',
+            scale: 160,
           },
           {
-            // 🏛️ 法國國家配置
-            layerId: 'France', // 圖層唯一標識符
-            layerName: 'FRANCE', // 圖層顯示名稱
-            center: [2.3488, 48.8534], // 法國中心座標 [經度, 緯度]
+            layerId: 'Stereographic',
+            layerName: 'Stereographic',
+            type: 'Stereographic',
+            scale: 100,
           },
           {
-            // 🏛️ 德國國家配置
-            layerId: 'Germany', // 圖層唯一標識符
-            layerName: 'GERMANY', // 圖層顯示名稱
-            center: [13.399, 52.5108], // 德國中心座標 [經度, 緯度]
+            layerId: 'Albers',
+            layerName: 'Albers',
+            type: 'Albers',
+            scale: 120,
+          },
+          {
+            layerId: 'ConicConformal',
+            layerName: 'Conic Conformal',
+            type: 'ConicConformal',
+            scale: 100,
+          },
+          {
+            layerId: 'ConicEqualArea',
+            layerName: 'Conic Equal Area',
+            type: 'ConicEqualArea',
+            scale: 100,
+          },
+          {
+            layerId: 'ConicEquidistant',
+            layerName: 'Conic Equidistant',
+            type: 'ConicEquidistant',
+            scale: 100,
+          },
+          {
+            layerId: 'Equirectangular',
+            layerName: 'Equirectangular',
+            type: 'Equirectangular',
+            scale: 80,
+          },
+          {
+            layerId: 'Mercator',
+            layerName: 'Mercator',
+            type: 'Mercator',
+            scale: 70,
+          },
+          {
+            layerId: 'TransverseMercator',
+            layerName: 'Transverse Mercator',
+            type: 'TransverseMercator',
+            scale: 70,
           },
         ],
       },
@@ -264,49 +292,51 @@ export const useDataStore = defineStore(
     };
 
     /**
-     * 🌍 導航到指定國家
+     * 🌍 切換投影類型
      *
-     * 將地圖視圖移動到指定國家的中心位置
+     * 將地圖切換到指定的投影類型
      *
-     * @param {string} countryId - 國家圖層的唯一標識符
+     * @param {string} projectionId - 投影類型的唯一標識符
      * @returns {void}
      */
-    const navigateToCountry = (countryId) => {
-      // 查找國家圖層
-      const countryLayer = findLayerById(countryId);
-      if (!countryLayer) {
-        console.error('❌ 找不到國家圖層:', countryId);
+    const changeProjection = (projectionId) => {
+      // 查找投影圖層
+      const projectionLayer = findLayerById(projectionId);
+      if (!projectionLayer) {
+        // eslint-disable-next-line no-console
+        console.error('❌ 找不到投影類型:', projectionId);
         return;
       }
 
       // 檢查地圖實例是否準備就緒
       if (!mapInstance.value) {
+        // eslint-disable-next-line no-console
         console.error('❌ 地圖實例未準備就緒，等待地圖初始化...');
         // 延遲重試機制
         setTimeout(() => {
           if (mapInstance.value) {
-            console.log('🌍 地圖已準備就緒，重新嘗試移動');
-            navigateToCountry(countryId);
+            // eslint-disable-next-line no-console
+            console.log('🌍 地圖已準備就緒，重新嘗試切換投影');
+            changeProjection(projectionId);
           } else {
+            // eslint-disable-next-line no-console
             console.error('❌ 地圖實例仍未準備就緒');
           }
         }, 1000);
         return;
       }
 
-      // 使用國家中心座標 (D3.js 使用 [lng, lat] 格式)
-      const center = countryLayer.center;
-      const optimalZoom = COUNTRY_ZOOM_LEVEL; // 使用固定的縮放級別
-
-      // 執行地圖導航
+      // 執行投影切換
       try {
-        // D3.js 地圖使用 navigateToLocation 方法
-        if (mapInstance.value.navigateToLocation) {
-          mapInstance.value.navigateToLocation(center, optimalZoom);
-          console.log(`🌍 成功導航到國家: ${countryLayer.layerName}`);
+        // D3.js 地圖使用 changeProjection 方法
+        if (mapInstance.value.changeProjection) {
+          mapInstance.value.changeProjection(projectionLayer.type, projectionLayer.scale);
+          // eslint-disable-next-line no-console
+          console.log(`🌍 成功切換到投影類型: ${projectionLayer.layerName}`);
         }
       } catch (error) {
-        console.error('❌ 地圖導航失敗:', error);
+        // eslint-disable-next-line no-console
+        console.error('❌ 投影切換失敗:', error);
       }
     };
 
@@ -318,7 +348,7 @@ export const useDataStore = defineStore(
       setSelectedFeature, // 設定選中的地圖要素
       mapInstance, // 地圖實例
       setMapInstance, // 設定地圖實例
-      navigateToCountry, // 導航到指定國家
+      changeProjection, // 切換投影類型
       homeCountry, // 台灣（紅色標示）
       isHomeCountry, // 檢查國家是否為台灣
       visitedCountries, // 已造訪國家列表

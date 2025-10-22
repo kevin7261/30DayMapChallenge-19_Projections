@@ -24,7 +24,7 @@
   export default {
     name: 'MapTab',
     props: {
-      currentCountry: { type: String, default: '國家名稱' },
+      currentProjection: { type: String, default: 'Azimuthal Equal Area' },
     },
     emits: ['map-ready'],
     setup(props, { emit }) {
@@ -40,7 +40,6 @@
       let path = null;
       let zoom = null;
       let g = null;
-      let ringsGroup = null;
 
       // 🎛️ 地圖控制狀態
       const isMapReady = ref(false);
@@ -49,25 +48,133 @@
       // 世界地圖數據
       const worldData = ref(null);
 
+      // 當前投影類型和縮放比例
+      const currentProjectionType = ref('AzimuthalEquidistant');
+      const currentScale = ref(80);
+
       // 圓圈現在使用 D3.js 繪製，不需要大小計算函數
 
       // 📊 計算屬性：檢查是否有任何圖層可見
       const isAnyLayerVisible = computed(() => dataStore.getAllLayers().length > 0);
 
-      // 🏙️ 當前國家信息
-      const currentCountryInfo = computed(() => {
-        if (!props.currentCountry) {
-          return null;
+      /**
+       * 🗺️ 創建投影
+       * 根據投影類型創建對應的 D3.js 投影，並自動適應版面大小
+       */
+      const createProjection = (type, width, height, baseScale) => {
+        const taiwanCenter = [120.982025, 23.973875];
+        let proj;
+
+        switch (type) {
+          case 'AzimuthalEqualArea':
+            proj = d3.geoAzimuthalEqualArea();
+            break;
+          case 'AzimuthalEquidistant':
+            proj = d3.geoAzimuthalEquidistant();
+            break;
+          case 'Gnomonic':
+            proj = d3.geoGnomonic();
+            break;
+          case 'Orthographic':
+            proj = d3.geoOrthographic();
+            break;
+          case 'Stereographic':
+            proj = d3.geoStereographic();
+            break;
+          case 'Albers':
+            proj = d3.geoAlbers().parallels([15, 35]);
+            break;
+          case 'ConicConformal':
+            proj = d3.geoConicConformal().parallels([15, 35]);
+            break;
+          case 'ConicEqualArea':
+            proj = d3.geoConicEqualArea().parallels([15, 35]);
+            break;
+          case 'ConicEquidistant':
+            proj = d3.geoConicEquidistant().parallels([15, 35]);
+            break;
+          case 'Equirectangular':
+            proj = d3.geoEquirectangular();
+            break;
+          case 'Mercator':
+            proj = d3.geoMercator();
+            break;
+          case 'TransverseMercator':
+            proj = d3.geoTransverseMercator();
+            break;
+          default:
+            proj = d3.geoAzimuthalEquidistant();
         }
 
-        const allLayers = dataStore.getAllLayers();
-        const countryLayer = allLayers.find((layer) => layer.layerName === props.currentCountry);
-        if (countryLayer) {
-          return {};
+        // 計算適合的縮放比例，讓地圖適應版面
+        const padding = 32;
+        const availableWidth = width - padding * 2;
+        const availableHeight = height - padding * 2;
+
+        // 根據投影類型計算適合的縮放比例，讓地圖完全適應畫面
+        let scale;
+        if (
+          type.includes('Azimuthal') ||
+          type === 'Orthographic' ||
+          type === 'Stereographic' ||
+          type === 'Gnomonic'
+        ) {
+          // 方位投影：以較小邊為基準，確保圓形投影完整顯示
+          scale = Math.min(availableWidth, availableHeight) / 4.5;
+        } else if (type.includes('Conic')) {
+          // 圓錐投影：考慮緯度範圍
+          scale = Math.min(availableWidth, availableHeight) / 5.0;
+        } else if (type === 'Equirectangular') {
+          // 等距圓柱投影：保持長寬比
+          scale = Math.min(availableWidth, availableHeight) / 5.5;
+        } else if (type === 'Mercator') {
+          // 墨卡托投影：考慮緯度範圍
+          scale = Math.min(availableWidth, availableHeight) / 4.5;
+        } else if (type === 'TransverseMercator') {
+          // 橫軸墨卡托投影
+          scale = Math.min(availableWidth, availableHeight) / 4.5;
         } else {
-          return null;
+          // 預設縮放
+          scale = Math.min(availableWidth, availableHeight) / 5.0;
         }
-      });
+
+        // 應用基礎縮放比例調整
+        scale = scale * (baseScale / 100);
+
+        proj
+          .scale(scale)
+          .center([0, 0])
+          .rotate([-taiwanCenter[0], -taiwanCenter[1], 0])
+          .translate([width / 2, height / 2]);
+
+        return proj;
+      };
+
+      /**
+       * 🔄 切換投影類型
+       * 動態更新地圖的投影類型
+       */
+      const changeProjection = (type, scale) => {
+        if (!svg || !mapContainer.value) return;
+
+        currentProjectionType.value = type;
+        currentScale.value = scale;
+
+        const rect = mapContainer.value.getBoundingClientRect();
+        const width = rect.width;
+        const height = rect.height;
+
+        projection = createProjection(type, width, height, scale);
+        path = d3.geoPath().projection(projection);
+
+        // 更新所有路徑
+        g.selectAll('path.country').attr('d', path);
+
+        // 移除距離圓圈繪製
+
+        // eslint-disable-next-line no-console
+        console.log('[MapTab] 投影切換完成，類型:', type, '縮放:', scale);
+      };
 
       /**
        * 📥 載入世界地圖數據
@@ -121,20 +228,14 @@
 
           svgElement.value = svg.node();
 
-          // 創建投影 - 使用方位等距投影 (Azimuthal Equidistant Projection)
-          // 預設以台灣地理中心為投影中心
-          // 添加32px padding，確保地圖不會貼邊
-          const padding = 32;
-          const availableWidth = width - padding * 2;
-          const availableHeight = height - padding * 2;
-          const scale = Math.min(availableWidth, availableHeight) / 6;
-
-          projection = d3
-            .geoAzimuthalEquidistant()
-            .rotate([-120.982025, -23.973875]) // 以台灣地理中心為中心
-            .scale(scale) // 使用計算後的縮放比例
-            .translate([width / 2, height / 2])
-            .clipAngle(180);
+          // 創建投影 - 使用參數化的投影類型
+          // 預設以台灣地理中心為投影中心，自動適應版面大小
+          projection = createProjection(
+            currentProjectionType.value,
+            width,
+            height,
+            currentScale.value
+          );
 
           // 創建路徑生成器
           path = d3.geoPath().projection(projection);
@@ -157,7 +258,8 @@
             svg,
             projection,
             path,
-            navigateToLocation: (center) => navigateToLocation(center),
+            navigateToLocation: () => navigateToLocation(),
+            changeProjection: (type, scale) => changeProjection(type, scale),
           };
 
           emit('map-ready', mapInterface);
@@ -168,65 +270,6 @@
           console.error('[MapTab] D3 地圖創建失敗:', error);
           return false;
         }
-      };
-
-      /**
-       * 🔵 繪製以投影中心為圓心的同心距離圓
-       * 每 5000 公里一圈，淺灰虛線，永遠位於地圖上層
-       * 最多繪製到 15000 公里（3 圈）
-       * 地球邊界（180°）繪製實線圓圈
-       */
-      const drawDistanceRings = () => {
-        if (!svg || !projection || !mapContainer.value) return;
-
-        const [cx, cy] = projection.translate();
-        const scale = projection.scale();
-
-        // 以公尺為單位的地球半徑與步長（5000 公里）
-        const earthRadiusMeters = 6371008.8;
-        const stepMeters = 5000000; // 5000 km
-        const maxDistanceMeters = 15000000; // 15000 km
-
-        // 計算需要的圈數與對應像素半徑（r = scale * (distance / R)）
-        const rings = [];
-        for (let i = 1; i <= 3; i++) {
-          const distanceMeters = stepMeters * i;
-          if (distanceMeters > maxDistanceMeters) break;
-          const radiusPx = scale * (distanceMeters / earthRadiusMeters);
-          rings.push({ index: i, radiusPx, type: 'distance' });
-        }
-
-        // 加入地球邊界圓（180° = π * R，在方位等距投影中對應到 scale * π）
-        const earthBoundaryRadiusPx = scale * Math.PI;
-        rings.push({ index: 999, radiusPx: earthBoundaryRadiusPx, type: 'boundary' });
-
-        if (!ringsGroup) {
-          ringsGroup = svg
-            .append('g')
-            .attr('class', 'rings-overlay')
-            .style('pointer-events', 'none');
-        }
-
-        // 確保在最上層
-        ringsGroup.raise();
-
-        // 資料繫結與繪製
-        const selection = ringsGroup.selectAll('circle.ring').data(rings, (d) => d.index);
-
-        selection
-          .enter()
-          .append('circle')
-          .attr('class', 'ring')
-          .attr('fill', 'none')
-          .merge(selection)
-          .attr('cx', cx)
-          .attr('cy', cy)
-          .attr('r', (d) => d.radiusPx)
-          .attr('stroke', (d) => (d.type === 'boundary' ? '#666666' : '#cccccc'))
-          .attr('stroke-width', (d) => (d.type === 'boundary' ? 2 : 1))
-          .attr('stroke-dasharray', (d) => (d.type === 'boundary' ? 'none' : '6,6'));
-
-        selection.exit().remove();
       };
 
       /**
@@ -272,34 +315,11 @@
 
       /**
        * 🌍 導航到指定位置
-       * 使用方位等距投影，將選定的國家設為地圖中心
-       * 地球大小保持不變，只改變旋轉中心
+       * 保留此函數以維持兼容性，但台灣位置已固定
        */
-      const navigateToLocation = (center) => {
-        if (!svg || !projection) return;
-
-        const rect = mapContainer.value.getBoundingClientRect();
-        const width = rect.width;
-        const height = rect.height;
-
-        // 方位等距投影：使用 rotate 將選定位置旋轉到中心
-        // rotate 接受 [lambda, phi, gamma]，其中 lambda 和 phi 是經緯度的負值
-        // 地球大小保持固定，不隨導航改變
-        // 添加32px padding，確保地圖不會貼邊
-        const padding = 32;
-        const availableWidth = width - padding * 2;
-        const availableHeight = height - padding * 2;
-        const scale = Math.min(availableWidth, availableHeight) / 6;
-
-        projection.rotate([-center[0], -center[1]]).scale(scale);
-
-        // 更新所有路徑
-        g.selectAll('path.country').attr('d', path);
-
-        // 重新繪製距離圓
-        drawDistanceRings();
-
-        console.log('[MapTab] 地圖導航完成，中心:', center);
+      const navigateToLocation = () => {
+        // 台灣位置已固定在投影中心，此函數不再需要執行任何操作
+        console.log('[MapTab] 台灣位置已固定');
       };
 
       /**
@@ -315,20 +335,20 @@
 
         svg.attr('width', width).attr('height', height);
 
-        // 添加32px padding，確保地圖不會貼邊
-        const padding = 32;
-        const availableWidth = width - padding * 2;
-        const availableHeight = height - padding * 2;
-        const scale = Math.min(availableWidth, availableHeight) / 6;
-
-        projection.translate([width / 2, height / 2]).scale(scale);
+        projection = createProjection(
+          currentProjectionType.value,
+          width,
+          height,
+          currentScale.value
+        );
+        path = d3.geoPath().projection(projection);
 
         // 更新所有路徑
         g.selectAll('path.country').attr('d', path);
 
-        // 重新繪製距離圓
-        drawDistanceRings();
+        // 不再繪製距離圓
 
+        // eslint-disable-next-line no-console
         console.log('[MapTab] 地圖尺寸更新完成');
       };
 
@@ -359,8 +379,6 @@
           if (createMap()) {
             console.log('[MapTab] 地圖創建成功，開始繪製世界地圖');
             await drawWorldMap();
-            // 繪製距離圓（置於最上層）
-            drawDistanceRings();
           } else {
             console.log('[MapTab] 地圖創建失敗，100ms 後重試');
             setTimeout(tryCreateMap, 100);
@@ -433,16 +451,16 @@
         { deep: true }
       );
 
-      // 👀 監聽器：監聽當前國家變化
+      // 👀 監聽器：監聽當前投影類型變化
       watch(
-        () => props.currentCountry,
-        (newCountry) => {
-          if (isMapReady.value && newCountry) {
-            // currentCountry 是 layerName，需要找到對應的圖層
+        () => props.currentProjection,
+        (newProjection) => {
+          if (isMapReady.value && newProjection) {
+            // currentProjection 是 layerName，需要找到對應的投影圖層
             const allLayers = dataStore.getAllLayers();
-            const layer = allLayers.find((l) => l.layerName === newCountry);
+            const layer = allLayers.find((l) => l.layerName === newProjection);
             if (layer) {
-              navigateToLocation(layer.center);
+              changeProjection(layer.type, layer.scale);
             }
           }
         }
@@ -453,10 +471,10 @@
         mapContainer,
         mapContainerId,
         isAnyLayerVisible,
-        currentCountryInfo,
         invalidateSize,
         defineStore,
         navigateToLocation,
+        changeProjection,
       };
     },
   };

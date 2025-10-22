@@ -29,46 +29,44 @@
 
       /**
        * 🗺️ 設定地圖實例
-       * 將 D3.js 地圖實例傳遞給 dataStore 以便城市導航使用
-       * @param {Object} map - D3.js 地圖實例（包含 svg, projection, path）
+       * 將 D3.js 地圖實例傳遞給 dataStore 以便投影切換使用
+       * @param {Object} map - D3.js 地圖實例（包含 svg, projection, path, changeProjection）
        */
       const setMapInstance = (map) => dataStore.setMapInstance(map);
 
       /**
-       * 🌍 導航到指定國家
-       * 將地圖視圖移動到選定國家的中心位置
-       * @param {string} countryId - 國家 ID
+       * 🌍 切換投影類型
+       * 將地圖切換到指定的投影類型
+       * @param {string} projectionId - 投影類型 ID
        */
-      const navigateToCountry = (countryId) => {
-        // 更新當前國家名稱
-        const country = countries.value?.find((c) => c.layerId === countryId);
-        if (country) {
-          console.log('🌍 切換到國家:', country.layerName);
-          currentCountry.value = country.layerName;
+      const changeProjection = (projectionId) => {
+        // 更新當前投影類型名稱
+        const projection = projections.value?.find((p) => p.layerId === projectionId);
+        if (projection) {
+          console.log('🌍 切換到投影類型:', projection.layerName);
+          currentProjection.value = projection.layerName;
         }
-        dataStore.navigateToCountry(countryId);
+        dataStore.changeProjection(projectionId);
       };
 
-      // 移除底圖切換功能，使用預設的標準地圖
+      // 📊 獲取投影類型列表
+      const projections = computed(() => dataStore.layers[0].groupLayers);
 
-      // 📊 獲取國家列表
-      const countries = computed(() => dataStore.layers[0].groupLayers);
-
-      // 🌍 當前選中的國家（預設為台灣）
-      const currentCountry = ref('TAIWAN');
+      // 🌍 當前選中的投影類型（預設為 Azimuthal Equidistant）
+      const currentProjection = ref('Azimuthal Equidistant');
 
       // 🚀 初始化應用程式
       onMounted(() => {
-        // 直接導航到台灣
-        navigateToCountry('Taiwan');
+        // 預設使用 Azimuthal Equidistant 投影
+        changeProjection('AzimuthalEquidistant');
       });
 
       return {
         setMapInstance,
-        navigateToCountry,
-        countries,
+        changeProjection,
+        projections,
         defineStore,
-        currentCountry,
+        currentProjection,
       };
     },
   };
@@ -80,7 +78,7 @@
     <!-- 🗺️ 地圖區域容器 -->
     <div class="flex-grow-1 overflow-hidden position-relative">
       <!-- 🗺️ 地圖組件 -->
-      <MapTab @map-ready="setMapInstance" :current-country="currentCountry" />
+      <MapTab @map-ready="setMapInstance" :current-projection="currentProjection" />
 
       <!-- 🎛️ 左側中間控制面板 -->
       <div
@@ -88,22 +86,20 @@
         style="top: 50%; left: 0; transform: translateY(-50%); z-index: 1000; padding: 1rem"
       >
         <div class="bg-dark bg-opacity-75 rounded-3 p-3">
-          <!-- 🌍 國家導航區域 -->
+          <!-- 🌍 投影類型選擇區域 -->
           <div class="">
             <div class="d-flex flex-column gap-1">
               <button
-                v-for="country in countries"
-                :key="country.layerId"
+                v-for="projection in projections"
+                :key="projection.layerId"
                 class="btn border-0 my-country-btn my-font-sm-white px-4 py-3"
-                :class="[currentCountry === country.layerName ? 'active' : '']"
-                @click="navigateToCountry(country.layerId)"
+                :class="[currentProjection === projection.layerName ? 'active' : '']"
+                @click="changeProjection(projection.layerId)"
               >
-                {{ country.layerName }}
+                {{ projection.layerName }}
               </button>
             </div>
           </div>
-
-          <!-- 移除底圖選擇區域，使用預設的標準地圖 -->
         </div>
       </div>
     </div>
