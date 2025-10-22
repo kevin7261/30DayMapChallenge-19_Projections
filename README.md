@@ -1,4 +1,4 @@
-# 🌍 30 Day Map Challenge - Day 22: Natural Earth Data
+# 🌍 30 Day Map Challenge - Day 19: Projections
 
 一個基於 Vue 3 和 D3.js 的互動式世界地圖視覺化應用，展示參展國家分布。
 
@@ -69,9 +69,8 @@ public/
 1. **克隆專案**
 
    ```bash
-   git clone https://github.com/kevin7261/30DayMapChallenge-22_Data-challenge-Natural-Earth.git
-   cd 30DayMapChallenge-22_Data-challenge-Natural-Earth
-   cd website/22_Data\ challenge-Natural\ Earth
+   git clone https://github.com/kevin7261/30DayMapChallenge-19_Projections.git
+   cd 30DayMapChallenge-19_Projections
    ```
 
 2. **安裝依賴**
@@ -86,7 +85,7 @@ public/
    npm run serve
    ```
 
-   瀏覽器訪問：`http://localhost:8080/30DayMapChallenge-22_Data-challenge-Natural-Earth/`
+   瀏覽器訪問：`http://localhost:8080/30DayMapChallenge-19_Projections/`
 
 4. **構建生產版本**
 
@@ -170,9 +169,9 @@ const southLatLimit = -60; // 南緯限制
 ## 🌐 線上展示
 
 - **GitHub Pages**:
-  https://kevin7261.github.io/30DayMapChallenge-22_Data-challenge-Natural-Earth/
+  https://kevin7261.github.io/30DayMapChallenge-19_Projections/
 - **專案倉庫**:
-  https://github.com/kevin7261/30DayMapChallenge-22_Data-challenge-Natural-Earth
+  https://github.com/kevin7261/30DayMapChallenge-19_Projections
 
 ## 📝 開發指令
 
@@ -217,4 +216,4 @@ npm run deploy
 
 ---
 
-**#30DayMapChallenge** 🗺️ Day 22: Data Challenge - Natural Earth
+**#30DayMapChallenge** 🗺️ Day 19: Projections
