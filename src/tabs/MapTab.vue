@@ -50,6 +50,9 @@
       const currentProjectionType = ref('AzimuthalEquidistant');
       const currentScale = ref(80);
 
+      // ConicConformal 投影的放大倍率
+      const conicConformalScale = ref(1000);
+
       // 圓圈現在使用 D3.js 繪製，不需要大小計算函數
 
       // 📊 計算屬性：檢查是否有任何圖層可見
@@ -129,8 +132,10 @@
             // Stereographic 投影：使用完整地球球體，讓投影自然填滿方形視野
             proj.fitExtent(extent, { type: 'Sphere' });
           } else if (type === 'ConicConformal') {
-            // Conic Conformal 投影：使用 fitExtent 自動適應畫面大小
+            // Conic Conformal 投影：先 fit 再應用自定義放大倍率
             proj.fitExtent(extent, { type: 'Sphere' });
+            const currentScale = proj.scale();
+            proj.scale(currentScale * conicConformalScale.value);
           } else {
             // 其他投影使用球體
             proj.center([0, 0]).fitExtent(extent, { type: 'Sphere' });
@@ -144,6 +149,18 @@
         }
 
         return proj;
+      };
+
+      /**
+       * 🔧 設定 ConicConformal 放大倍率
+       * 設定圓錐保角投影的放大倍率
+       */
+      const setConicConformalScale = (scale) => {
+        conicConformalScale.value = scale;
+        // 如果當前是 ConicConformal 投影，立即更新
+        if (currentProjectionType.value === 'ConicConformal') {
+          changeProjection('ConicConformal', currentScale.value);
+        }
       };
 
       /**
@@ -422,8 +439,7 @@
             .attr('fill', 'none')
             .attr('stroke', '#999999')
             .attr('stroke-width', 1)
-            .attr('opacity', 0.8)
-            .attr('stroke-dasharray', '2,2');
+            .attr('opacity', 0.8);
 
           // 距離圓圈功能已移除
 
@@ -607,6 +623,9 @@
         invalidateSize,
         navigateToLocation,
         changeProjection,
+        // ConicConformal 相關
+        conicConformalScale,
+        setConicConformalScale,
       };
     },
   };
