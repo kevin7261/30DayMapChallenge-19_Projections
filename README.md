@@ -1,4 +1,4 @@
-# 🌍 30DayMapChallenge-19_Projections - 世界國家地圖
+# 🌍 30DayMapChallenge-19_Projections - 地圖投影
 
 一個基於 Vue 3 和 Leaflet 的互動式世界國家地圖應用程式，展示六大國家的座標點。
 
@@ -297,4 +297,4 @@ VUE_APP_API_URL=https://your-api-domain.com
 
 ---
 
-**30DayMapChallenge-19_Projections** - 探索世界國家的點之美 🌍✨
+**30DayMapChallenge-19_Projections** - 探索地圖投影之美 🌍✨
