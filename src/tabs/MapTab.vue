@@ -84,13 +84,12 @@
             break;
           case 'ConicConformal':
             // 修正 Conic Conformal 投影：標準圓錐投影，經線為直線
-            // 使用標準緯線 33° 和 45°，中心點設為東經120度、北緯0度（台灣附近）
-            // 限制顯示範圍到南緯60度
+            // 按照參考範例設定，但調整為適合台灣附近和限制到南緯60度
             proj = d3
               .geoConicConformal()
-              .scale(Math.min(width, height) * 0.8) // 設定縮放比例
-              .center([120, 0]) // 中心點 [經度, 緯度] (東經120度、北緯0度)
-              .parallels([-30, 30]) // 標準緯線：南緯30° 和 北緯30°，適合顯示到南緯60度
+              .scale(Math.min(width, height) * 1.5) // 縮放比例（參考範例用800，這裡用動態比例）
+              .center([120, 15]) // 中心點 [經度, 緯度] (東經120度、北緯15度，適合台灣附近)
+              .parallels([10, 30]) // 標準緯線：北緯10° 和 30°，適合顯示北緯90到南緯60
               .rotate([0, 0]) // 旋轉
               .translate([width / 2, height / 2]); // 將地圖中心平移到 SVG 中心
             break;
@@ -195,8 +194,19 @@
         // 更新所有國家路徑
         g.selectAll('path.country').attr('d', path);
 
-        // 更新經緯線網格（確保在上層）
-        g.selectAll('path.grid-line').attr('d', path);
+        // 重新生成經緯線網格（根據新的投影類型）
+        g.selectAll('path.grid-line').remove();
+        const gridData = generateGridLines(type);
+        g.selectAll('path.grid-line')
+          .data(gridData.features)
+          .enter()
+          .append('path')
+          .attr('class', 'grid-line')
+          .attr('d', path)
+          .attr('fill', 'none')
+          .attr('stroke', '#666666')
+          .attr('stroke-width', 2)
+          .attr('opacity', 1);
 
         // 移除距離圓圈繪製
 
@@ -297,14 +307,31 @@
 
       /**
        * 🌐 生成經緯線網格數據
-       * 生成每30度的經線和緯線
+       * 生成每30度的經線和緯線，針對ConicConformal投影限制範圍
        */
-      const generateGridLines = () => {
+      const generateGridLines = (projectionType = 'default') => {
         const gridLines = [];
 
-        // 生成緯線 (每30度一條，從-90到90度)
-        for (let lat = -90; lat <= 90; lat += 30) {
-          // 跳過南北極點（它們是點而非線）
+        // 根據投影類型設定不同的經緯度範圍
+        let latMin, latMax, lonMin, lonMax;
+
+        if (projectionType === 'ConicConformal') {
+          // ConicConformal 投影：從北緯90度到南緯60度
+          latMin = -60;
+          latMax = 90;
+          lonMin = -180;
+          lonMax = 180;
+        } else {
+          // 其他投影：使用完整範圍
+          latMin = -90;
+          latMax = 90;
+          lonMin = -180;
+          lonMax = 180;
+        }
+
+        // 生成緯線 (每30度一條)
+        for (let lat = latMin; lat <= latMax; lat += 30) {
+          // 跳過極點（它們是點而非線）
           if (lat === -90 || lat === 90) continue;
 
           const line = {
@@ -315,16 +342,16 @@
             },
           };
 
-          // 每條緯線由多個點組成，從-180到180度經度
-          for (let lon = -180; lon <= 180; lon += 1) {
+          // 每條緯線由多個點組成
+          for (let lon = lonMin; lon <= lonMax; lon += 1) {
             line.geometry.coordinates.push([lon, lat]);
           }
 
           gridLines.push(line);
         }
 
-        // 生成經線 (每30度一條，從-180到150度)
-        for (let lon = -180; lon <= 150; lon += 30) {
+        // 生成經線 (每30度一條)
+        for (let lon = lonMin; lon <= lonMax - 30; lon += 30) {
           const line = {
             type: 'Feature',
             geometry: {
@@ -333,8 +360,8 @@
             },
           };
 
-          // 每條經線由多個點組成，從南極(-90)到北極(90)
-          for (let lat = -90; lat <= 90; lat += 1) {
+          // 每條經線由多個點組成
+          for (let lat = latMin; lat <= latMax; lat += 1) {
             line.geometry.coordinates.push([lon, lat]);
           }
 
@@ -388,7 +415,7 @@
             .attr('class', 'country');
 
           // 繪製經緯線網格（後繪製，顯示在上層）
-          const gridData = generateGridLines();
+          const gridData = generateGridLines(currentProjectionType.value);
           g.selectAll('path.grid-line')
             .data(gridData.features)
             .enter()
