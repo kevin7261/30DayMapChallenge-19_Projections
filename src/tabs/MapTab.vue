@@ -83,15 +83,12 @@
             proj = d3.geoAlbers().parallels([20, 60]);
             break;
           case 'ConicConformal':
-            // 修正 Conic Conformal 投影：標準圓錐投影，經線為直線
-            // 按照參考範例設定，但調整為適合台灣附近和限制到南緯60度
+            // 重新設計 Conic Conformal 投影：標準圓錐投影，不顯示南極
             proj = d3
               .geoConicConformal()
-              .scale(Math.min(width, height) * 1.5) // 縮放比例（參考範例用800，這裡用動態比例）
-              .center([120, 15]) // 中心點 [經度, 緯度] (東經120度、北緯15度，適合台灣附近)
-              .parallels([10, 30]) // 標準緯線：北緯10° 和 30°，適合顯示北緯90到南緯60
+              .parallels([20, 60]) // 標準緯線：北緯20° 和 60°
               .rotate([0, 0]) // 旋轉
-              .translate([width / 2, height / 2]); // 將地圖中心平移到 SVG 中心
+              .center([0, 40]); // 中心點 [經度, 緯度] (經度0°，北緯40°)
             break;
           case 'ConicEqualArea':
             proj = d3.geoConicEqualArea().parallels([20, 60]);
@@ -132,8 +129,8 @@
             // Stereographic 投影：使用完整地球球體，讓投影自然填滿方形視野
             proj.fitExtent(extent, { type: 'Sphere' });
           } else if (type === 'ConicConformal') {
-            // Conic Conformal 投影：已經在投影定義中設定了縮放和平移，不需要 fitExtent
-            // 投影已經配置完成，不需要額外處理
+            // Conic Conformal 投影：使用 fitExtent 自動適應畫面大小
+            proj.fitExtent(extent, { type: 'Sphere' });
           } else {
             // 其他投影使用球體
             proj.center([0, 0]).fitExtent(extent, { type: 'Sphere' });
@@ -316,7 +313,7 @@
         let latMin, latMax, lonMin, lonMax;
 
         if (projectionType === 'ConicConformal') {
-          // ConicConformal 投影：從北緯90度到南緯60度
+          // ConicConformal 投影：從北緯90度到南緯60度，不顯示南極
           latMin = -60;
           latMax = 90;
           lonMin = -180;
