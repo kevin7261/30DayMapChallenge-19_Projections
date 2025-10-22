@@ -87,9 +87,11 @@
             // 使用標準緯線 20° 和 60°，中央經線 0°，中心緯度 40°
             proj = d3
               .geoConicConformal()
-              .parallels([20, 60]) // 標準緯線：20° 和 60°
-              .rotate([0, 0, 0]) // 中央經線 0°
-              .center([0, 40]); // 中心緯度 40°，產生標準圓錐投影
+              .scale(800) // 設定縮放比例
+              .center([0, 40]) // 中心點 [經度, 緯度]
+              .parallels([20, 60]) // 設定兩條標準緯線
+              .rotate([0, 0]) // 旋轉
+              .translate([width / 2, height / 2]); // 將地圖中心平移到 SVG 中心
             break;
           case 'ConicEqualArea':
             proj = d3.geoConicEqualArea().parallels([20, 60]);
@@ -122,6 +124,7 @@
           // 大部分投影類型將中心點設為東經120度、北緯0度
           proj.rotate([-120, 0, 0]);
         }
+        // ConicConformal 投影：已經在投影定義中設定了 center 和 rotate，不需要額外設定
 
         // 根據投影類型選擇適當的 fit 目標
         try {
@@ -129,8 +132,8 @@
             // Stereographic 投影：使用完整地球球體，讓投影自然填滿方形視野
             proj.fitExtent(extent, { type: 'Sphere' });
           } else if (type === 'ConicConformal') {
-            // Conic Conformal 使用球體，讓投影自然適應
-            proj.fitExtent(extent, { type: 'Sphere' });
+            // Conic Conformal 投影：已經手動設定了所有參數，跳過 fitExtent
+            // 不需要額外的 fitExtent 調用
           } else {
             // 其他投影使用球體
             proj.center([0, 0]).fitExtent(extent, { type: 'Sphere' });
