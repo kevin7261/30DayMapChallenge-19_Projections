@@ -85,11 +85,12 @@
           case 'ConicConformal':
             // 修正 Conic Conformal 投影：標準圓錐投影，經線為直線
             // 使用標準緯線 33° 和 45°，中心點設為東經120度、北緯0度（台灣附近）
+            // 限制顯示範圍到南緯60度
             proj = d3
               .geoConicConformal()
-              .scale(Math.min(width, height) * 0.8) // 設定縮放比例（縮小一點）
+              .scale(Math.min(width, height) * 0.8) // 設定縮放比例
               .center([120, 0]) // 中心點 [經度, 緯度] (東經120度、北緯0度)
-              .parallels([33, 45]) // 標準緯線：33° 和 45°
+              .parallels([-30, 30]) // 標準緯線：南緯30° 和 北緯30°，適合顯示到南緯60度
               .rotate([0, 0]) // 旋轉
               .translate([width / 2, height / 2]); // 將地圖中心平移到 SVG 中心
             break;
