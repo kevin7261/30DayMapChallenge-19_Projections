@@ -82,16 +82,16 @@
             proj = d3.geoStereographic();
             break;
           case 'Albers':
-            proj = d3.geoAlbers().parallels([15, 35]);
+            proj = d3.geoAlbers().parallels([20, 60]);
             break;
           case 'ConicConformal':
-            proj = d3.geoConicConformal().parallels([15, 35]);
+            proj = d3.geoConicConformal().parallels([20, 60]);
             break;
           case 'ConicEqualArea':
-            proj = d3.geoConicEqualArea().parallels([15, 35]);
+            proj = d3.geoConicEqualArea().parallels([20, 60]);
             break;
           case 'ConicEquidistant':
-            proj = d3.geoConicEquidistant().parallels([15, 35]);
+            proj = d3.geoConicEquidistant().parallels([20, 60]);
             break;
           case 'Equirectangular':
             proj = d3.geoEquirectangular();
@@ -106,46 +106,56 @@
             proj = d3.geoAzimuthalEquidistant();
         }
 
-        // 計算適合的縮放比例，讓地圖適應版面
+        // 使用幾何邊界自動適應視窗（保留 32px 邊距）
         const padding = 32;
-        const availableWidth = width - padding * 2;
-        const availableHeight = height - padding * 2;
+        const extent = [
+          [padding, padding],
+          [width - padding, height - padding],
+        ];
 
-        // 根據投影類型計算適合的縮放比例，讓地圖完全適應畫面
-        let scale;
-        if (
-          type.includes('Azimuthal') ||
-          type === 'Orthographic' ||
-          type === 'Stereographic' ||
-          type === 'Gnomonic'
-        ) {
-          // 方位投影：以較小邊為基準，確保圓形投影完整顯示
-          scale = Math.min(availableWidth, availableHeight) / 4.5;
-        } else if (type.includes('Conic')) {
-          // 圓錐投影：考慮緯度範圍
-          scale = Math.min(availableWidth, availableHeight) / 5.0;
-        } else if (type === 'Equirectangular') {
-          // 等距圓柱投影：保持長寬比
-          scale = Math.min(availableWidth, availableHeight) / 5.5;
-        } else if (type === 'Mercator') {
-          // 墨卡托投影：考慮緯度範圍
-          scale = Math.min(availableWidth, availableHeight) / 4.5;
-        } else if (type === 'TransverseMercator') {
-          // 橫軸墨卡托投影
-          scale = Math.min(availableWidth, availableHeight) / 4.5;
+        // 針對不同投影類型設定不同的中心點
+        if (type === 'Mercator' || type === 'TransverseMercator' || type === 'Equirectangular') {
+          // 圓柱投影使用標準配置，不旋轉
+          // 不設定 rotate，讓投影保持標準配置
         } else {
-          // 預設縮放
-          scale = Math.min(availableWidth, availableHeight) / 5.0;
+          // 其他投影類型將台灣置於投影中心方向
+          proj.rotate([-taiwanCenter[0], -taiwanCenter[1], 0]);
+        }
+
+        // 使用世界資料做 fitExtent，確保完整顯示且留出邊距
+        if (worldData.value) {
+          try {
+            proj.fitExtent(extent, worldData.value);
+          } catch (e) {
+            // eslint-disable-next-line no-console
+            console.error('[MapTab] fitExtent 失敗:', e);
+          }
+        }
+
+        // 確保所有投影都能 fit 到版面，使用更保守的縮放
+        const fittedScale = proj.scale();
+        let adjustedScale = fittedScale;
+
+        // 針對不同投影類型進行微調，確保都能 fit 版面
+        if (type === 'AzimuthalEquidistant') {
+          adjustedScale = fittedScale * 0.9; // 稍微縮小確保 fit
+        } else if (type === 'Mercator') {
+          adjustedScale = fittedScale * 0.85; // Mercator 容易超出，更保守
+        } else if (type === 'TransverseMercator') {
+          adjustedScale = fittedScale * 0.9; // 稍微縮小
+        } else if (type.includes('Conic')) {
+          adjustedScale = fittedScale * 0.9; // 圓錐投影稍微縮小
+        } else if (type === 'Equirectangular') {
+          adjustedScale = fittedScale * 0.8; // 等距圓柱投影最容易超出
+        } else if (type === 'Orthographic') {
+          adjustedScale = fittedScale * 0.95; // 正射投影稍微縮小
+        } else {
+          adjustedScale = fittedScale * 0.9; // 其他投影預設稍微縮小
         }
 
         // 應用基礎縮放比例調整
-        scale = scale * (baseScale / 100);
-
-        proj
-          .scale(scale)
-          .center([0, 0])
-          .rotate([-taiwanCenter[0], -taiwanCenter[1], 0])
-          .translate([width / 2, height / 2]);
+        const shrinkFactor = Math.min(1, (baseScale || 100) / 100);
+        proj.scale(adjustedScale * shrinkFactor);
 
         return proj;
       };
