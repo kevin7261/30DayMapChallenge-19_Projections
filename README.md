@@ -1,43 +1,62 @@
-# 🌍 30DayMapChallenge-19_Projections - 世界國家地圖
+# 🌍 30DayMapChallenge-04_Data-challenge-My-Data - 世界國家地圖
 
-一個基於 Vue 3 和 D3.js 的互動式世界地圖視覺化應用，展示參展國家分布。
+一個基於 Vue 3 和 Leaflet 的互動式世界國家地圖應用程式，展示六大國家的座標點。
 
-## 📸 專案截圖
+## 📋 目錄
 
-![World Map](https://via.placeholder.com/800x400?text=World+Map+Screenshot)
+- [功能特色](#功能特色)
+- [技術架構](#技術架構)
+- [專案結構](#專案結構)
+- [安裝與運行](#安裝與運行)
+- [使用說明](#使用說明)
+- [API 文檔](#api-文檔)
+- [開發指南](#開發指南)
+- [部署說明](#部署說明)
 
 ## ✨ 功能特色
 
-### 地圖顯示
+### 🗺️ 地圖功能
 
-- **全屏響應式地圖**：使用 D3.js 繪製的麥卡托投影世界地圖
-- **國家分類著色**：
-  - 🔴 **台灣**：紅色標示（主要國家）
-  - 🔵 **參展國家**：淺藍色標示（152個參展國家）
-  - ⚪ **其他國家**：淺灰色標示
-- **微型國家標記**：對於地圖上不易顯示的微型國家，使用圓圈標記
-- **國家名稱提示**：滑鼠懸停時顯示國家名稱
-- **視覺回饋**：懸停時國家顏色會變深
+- **世界國家展示**: 顯示台灣、中國、日本、美國、法國、德國六大國家
+- **國家導航**: 點擊按鈕快速導航到指定國家
+- **標準底圖**: 使用 Carto Dark 底圖樣式
+- **響應式設計**: 適配各種設備尺寸
 
-### 技術特點
+### 🎨 用戶界面
 
-- **Natural Earth 數據**：使用 Natural Earth 1:110m 解析度的國家邊界數據
-- **限制顯示範圍**：北緯 80° 至南緯 60°，避免極地投影扭曲
-- **自動適應**：地圖會隨瀏覽器窗口大小自動調整
+- **簡潔設計**: 基於 Bootstrap 5 的現代化界面
+- **直觀操作**: 左上角控制面板，操作簡單
+- **視覺效果**: 平滑的地圖動畫和過渡效果
+- **HTML 中心點**: 在截圖框框中央顯示固定的白色圓點
 
-## 🛠️ 技術架構
+### 🚀 技術特色
 
-### 核心技術
+- **Vue 3 Composition API**: 現代化的 Vue 開發模式
+- **Pinia 狀態管理**: 高效的響應式狀態管理
+- **Leaflet 地圖庫**: 輕量級、高性能的地圖解決方案
+- **模組化架構**: 清晰的代碼組織和維護性
 
-- **Vue 3.2+** - 前端框架（使用 Composition API）
-- **D3.js 7.8+** - 地圖繪製和資料視覺化
-- **Pinia 2.1+** - 狀態管理
-- **Bootstrap 5** - UI 樣式框架
+## 🏗️ 技術架構
 
-### 專案結構
+### 前端技術棧
+
+- **Vue 3.3+**: 前端框架
+- **Leaflet 1.9+**: 地圖庫
+- **Pinia**: 狀態管理
+- **Bootstrap 5**: UI 框架
+- **Vue CLI**: 構建工具
+
+### 核心組件
+
+- **HomeView**: 主頁面組件，整合地圖和控制面板
+- **MapTab**: 地圖顯示組件，處理地圖渲染和互動
+- **dataStore**: 數據管理，處理國家數據和導航
+- **defineStore**: 配置管理，處理底圖和地圖狀態
+
+## 📁 專案結構
 
 ```
-30DayMapChallenge-19_Projections/
+30DayMapChallenge-04_Data-challenge-My-Data/
 ├── public/
 │   └── index.html
 ├── src/
@@ -59,143 +78,198 @@
 └── README.md
 ```
 
-## 🚀 快速開始
+## 🚀 安裝與運行
 
 ### 環境要求
 
 - Node.js 16.0+
 - npm 7.0+ 或 yarn 1.22+
 
-### 安裝與運行
+### 安裝步驟
 
 1. **克隆專案**
 
    ```bash
-   git clone https://github.com/kevin7261/30DayMapChallenge-19_Projections.git
-   cd 30DayMapChallenge-19_Projections
+   git clone https://github.com/kevin7261/30DayMapChallenge-04_Data-challenge-My-Data.git
+   cd 30DayMapChallenge-04_Data-challenge-My-Data
    ```
 
 2. **安裝依賴**
 
    ```bash
    npm install
+   # 或
+   yarn install
    ```
 
 3. **啟動開發服務器**
 
    ```bash
    npm run serve
+   # 或
+   yarn serve
    ```
 
-   瀏覽器訪問：`http://localhost:8080/30DayMapChallenge-19_Projections/`
-
 4. **構建生產版本**
+   ```bash
+   npm run build
+   # 或
+   yarn build
+   ```
+
+### 開發服務器
+
+- 本地地址: `http://localhost:8080/30DayMapChallenge-04_Data-challenge-My-Data/`
+- 網路地址: `http://[your-ip]:8080/30DayMapChallenge-04_Data-challenge-My-Data/`
+
+## 📖 使用說明
+
+### 基本操作
+
+1. **國家導航**
+
+   - 點擊左上角「國家導航」區域的按鈕
+   - 地圖會平滑移動到對應國家
+   - 支援的國家：台灣、中國、日本、美國、法國、德國
+
+2. **地圖互動**
+   - 滑鼠滾輪：縮放地圖
+   - 拖拽：移動地圖視圖
+   - 中心點：在截圖框框中央顯示固定的白色圓點
+
+### 支援的國家
+
+| 國家名稱 | 座標                | 縮放級別 |
+| -------- | ------------------- | -------- |
+| 台灣     | 25.04583, 121.51972 | 16       |
+| 中國     | 39.89877, 116.39288 | 16       |
+| 日本     | 35.68404, 139.77449 | 16       |
+| 美國     | 38.89511, -77.03655 | 16       |
+| 法國     | 48.85333, 2.34889   | 16       |
+| 德國     | 52.51083, 13.39889  | 16       |
+
+## 📚 API 文檔
+
+### dataStore API
+
+#### 方法
+
+- `getAllLayers()`: 獲取所有國家圖層
+- `findLayerById(layerId)`: 根據 ID 查找國家圖層
+- `navigateToCountry(countryId)`: 導航到指定國家
+- `setMapInstance(map)`: 設定地圖實例
+
+#### 狀態
+
+- `layers`: 國家圖層配置數組
+- `mapInstance`: Leaflet 地圖實例
+- `selectedFeature`: 當前選中的要素
+
+### defineStore API
+
+#### 方法
+
+- `setSelectedBasemap(value)`: 設定選中的底圖
+- `setMapView(center, zoom)`: 設定地圖視圖狀態
+
+#### 狀態
+
+- `selectedBasemap`: 當前選中的底圖類型
+- `mapView`: 地圖視圖狀態
+- `basemaps`: 底圖配置列表
+
+## 🛠️ 開發指南
+
+### 添加新國家
+
+1. **準備國家座標**
+
+   - 確定國家的中心座標 [經度, 緯度]
+   - 選擇合適的縮放級別
+
+2. **更新國家配置**
+
+   ```javascript
+   // 在 src/stores/dataStore.js 中添加
+   {
+     layerId: 'NewCountry',
+     layerName: 'NEW COUNTRY',
+     center: [lng, lat], // 國家中心座標 [經度, 緯度]
+   }
+   ```
+
+3. **更新按鈕樣式**
+
+   - 按鈕會自動使用 `my-country-btn` 樣式
+   - 如需自定義樣式，請修改 `common.css`
+
+### 自定義樣式
+
+1. **修改國家按鈕樣式**
+
+   ```css
+   /* 在 src/assets/css/common.css 中 */
+   .my-country-btn {
+     /* 自定義樣式 */
+   }
+   ```
+
+2. **修改中心點樣式**
+
+   ```html
+   <!-- 在 src/tabs/MapTab.vue 中 -->
+   <div class="rounded-circle bg-white" style="width: 12px; height: 12px"></div>
+   ```
+
+### 開發工具
+
+- **Vue DevTools**: 調試 Vue 組件和狀態
+- **Leaflet Debug**: 使用瀏覽器開發者工具調試地圖
+- **ESLint**: 代碼質量檢查
+
+## 🚀 部署說明
+
+### GitHub Pages 部署
+
+1. **構建專案**
 
    ```bash
    npm run build
    ```
 
-5. **部署到 GitHub Pages**
+2. **部署到 GitHub Pages**
+
    ```bash
    npm run deploy
    ```
 
-## 📚 開發指南
+3. **訪問網站**
 
-### 添加/修改參展國家
+   ```
+   https://kevin7261.github.io/30DayMapChallenge-04_Data-challenge-My-Data/
+   ```
 
-編輯 `src/stores/dataStore.js` 中的 `visitedCountries` 陣列：
+### 環境變數
 
-```javascript
-const visitedCountries = ref([
-  'Algeria', // 阿爾及利亞
-  'Australia', // 澳大利亞
-  'Japan', // 日本
-  // ... 添加更多國家
-]);
+創建 `.env` 文件配置環境變數：
+
+```env
+# 開發環境
+NODE_ENV=development
+VUE_APP_API_URL=http://localhost:3000
+
+# 生產環境
+NODE_ENV=production
+VUE_APP_API_URL=https://your-api-domain.com
 ```
 
-**注意**：國家名稱必須與 GeoJSON 數據中的 `properties.name`、`properties.ADMIN`
-或 `properties.NAME` 欄位完全匹配。
+### 性能優化
 
-### 添加微型國家座標
+1. **代碼分割**: 使用動態導入減少初始包大小
+2. **圖片優化**: 移除不必要的 GeoJSON 文件
+3. **緩存策略**: 配置適當的 HTTP 緩存頭
 
-對於在低解析度地圖中不可見的微型國家，可以在 `src/stores/dataStore.js` 中的
-`microStates` 陣列添加座標：
-
-```javascript
-const microStates = ref([
-  { name: 'Singapore', coordinates: [103.8198, 1.3521] },
-  { name: 'Monaco', coordinates: [7.4246, 43.7384] },
-  // ... 格式：{ name: '國家名稱', coordinates: [經度, 緯度] }
-]);
-```
-
-### 修改國家顏色
-
-在 `src/tabs/MapTab.vue` 的 `drawWorldMap()` 函數中修改：
-
-```javascript
-.attr('fill', (d) => {
-  const countryName = d.properties.name || d.properties.ADMIN || d.properties.NAME;
-  if (dataStore.isHomeCountry(countryName)) return '#ff9999'; // 台灣：紅色
-  if (dataStore.isCountryVisited(countryName)) return '#cce5ff'; // 參展：淺藍色
-  return '#d0d0d0'; // 其他：淺灰色
-})
-```
-
-### 調整地圖投影範圍
-
-在 `src/tabs/MapTab.vue` 的 `createMap()` 函數中修改緯度限制：
-
-```javascript
-const northLatLimit = 80; // 北緯限制
-const southLatLimit = -60; // 南緯限制
-```
-
-## 🎨 樣式自訂
-
-主要樣式位於：
-
-- `src/assets/css/common.css` - 通用樣式
-- `src/assets/css/variables.css` - CSS 變數
-- `src/tabs/MapTab.vue` - 地圖特定樣式（hover 效果等）
-
-## 📊 數據來源
-
-- **Natural Earth**: https://www.naturalearthdata.com/
-  - 數據集：1:110m Cultural Vectors - Admin 0 Countries
-  - 格式：GeoJSON
-  - 授權：Public Domain
-
-## 🌐 線上展示
-
-- **GitHub Pages**:
-  https://kevin7261.github.io/30DayMapChallenge-19_Projections/
-- **專案倉庫**: https://github.com/kevin7261/30DayMapChallenge-19_Projections
-
-## 📝 開發指令
-
-```bash
-# 啟動開發服務器
-npm run serve
-
-# 構建生產版本
-npm run build
-
-# 程式碼檢查
-npm run lint
-
-# 程式碼格式化
-npm run format
-
-# 部署到 GitHub Pages
-npm run deploy
-```
-
-## 🤝 貢獻
-
-歡迎提交 Issue 或 Pull Request！
+## 🤝 貢獻指南
 
 1. Fork 本專案
 2. 創建功能分支 (`git checkout -b feature/AmazingFeature`)
@@ -203,7 +277,7 @@ npm run deploy
 4. 推送到分支 (`git push origin feature/AmazingFeature`)
 5. 開啟 Pull Request
 
-## 📄 授權
+## 📄 授權條款
 
 本專案採用 MIT 授權條款 - 查看 [LICENSE](LICENSE) 文件了解詳情。
 
@@ -212,16 +286,15 @@ npm run deploy
 - 專案維護者: [Your Name]
 - 電子郵件: [your.email@example.com]
 - 專案連結:
-  [https://github.com/kevin7261/30DayMapChallenge-19_Projections](https://github.com/kevin7261/30DayMapChallenge-19_Projections)
+  [https://github.com/kevin7261/30DayMapChallenge-04_Data-challenge-My-Data](https://github.com/kevin7261/30DayMapChallenge-04_Data-challenge-My-Data)
 
 ## 🙏 致謝
 
-- [D3.js](https://d3js.org/) - 強大的資料視覺化庫
-- [Natural Earth](https://www.naturalearthdata.com/) - 免費的地理數據
+- [Leaflet](https://leafletjs.com/) - 開源地圖庫
 - [Vue.js](https://vuejs.org/) - 漸進式 JavaScript 框架
-- [Pinia](https://pinia.vuejs.org/) - Vue 狀態管理
 - [Bootstrap](https://getbootstrap.com/) - CSS 框架
+- [Pinia](https://pinia.vuejs.org/) - Vue 狀態管理庫
 
 ---
 
-**30DayMapChallenge-19_Projections** - 探索世界國家的點之美 🌍✨
+**30DayMapChallenge-04_Data-challenge-My-Data** - 探索世界國家的點之美 🌍✨
