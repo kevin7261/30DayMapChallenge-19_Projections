@@ -172,8 +172,7 @@ const southLatLimit = -60; // 南緯限制
 
 - **GitHub Pages**:
   https://kevin7261.github.io/30DayMapChallenge-19_Projections/
-- **專案倉庫**:
-  https://github.com/kevin7261/30DayMapChallenge-19_Projections
+- **專案倉庫**: https://github.com/kevin7261/30DayMapChallenge-19_Projections
 
 ## 📝 開發指令
 
