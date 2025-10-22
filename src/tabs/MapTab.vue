@@ -83,14 +83,13 @@
             proj = d3.geoAlbers().parallels([20, 60]);
             break;
           case 'ConicConformal':
-            // 重寫 Conic Conformal 投影以匹配參考範例
-            // 設定為北半球扇形投影，經線從北極輻射，直線
-            // 中央經線 0°，標準緯線 30° 和 60° 以涵蓋歐洲/非洲
+            // 修正 Conic Conformal 投影：標準圓錐投影，經線為直線
+            // 使用標準緯線 20° 和 60°，中央經線 0°，中心緯度 40°
             proj = d3
               .geoConicConformal()
-              .parallels([30, 60]) // 調整標準緯線以匹配範例的北半球重點
-              .rotate([0, 0, 0]) // 不旋轉，中央經線 0°
-              .center([0, 90]); // 中心置於北極以產生扇形效果
+              .parallels([20, 60]) // 標準緯線：20° 和 60°
+              .rotate([0, 0, 0]) // 中央經線 0°
+              .center([0, 40]); // 中心緯度 40°，產生標準圓錐投影
             break;
           case 'ConicEqualArea':
             proj = d3.geoConicEqualArea().parallels([20, 60]);
@@ -120,7 +119,7 @@
 
         // 針對不同投影類型設定不同的旋轉
         if (type !== 'ConicConformal') {
-          // 所有投影類型將中心點設為東經120度、北緯0度
+          // 大部分投影類型將中心點設為東經120度、北緯0度
           proj.rotate([-120, 0, 0]);
         }
 
@@ -130,15 +129,8 @@
             // Stereographic 投影：使用完整地球球體，讓投影自然填滿方形視野
             proj.fitExtent(extent, { type: 'Sphere' });
           } else if (type === 'ConicConformal') {
-            // Conic Conformal 使用自訂 graticule 涵蓋從北緯90°到南緯90°
-            const graticule = d3
-              .geoGraticule()
-              .extent([
-                [-180, -90],
-                [180, 90],
-              ]) // 涵蓋從南緯90°到北緯90°
-              .step([10, 10]); // 細緻網格
-            proj.fitExtent(extent, graticule.outline()); // fit 到完整地球輪廓
+            // Conic Conformal 使用球體，讓投影自然適應
+            proj.fitExtent(extent, { type: 'Sphere' });
           } else {
             // 其他投影使用球體
             proj.center([0, 0]).fitExtent(extent, { type: 'Sphere' });
