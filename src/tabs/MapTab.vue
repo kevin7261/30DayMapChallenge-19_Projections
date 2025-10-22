@@ -85,7 +85,7 @@
             proj = d3.geoAlbers().parallels([20, 60]);
             break;
           case 'ConicConformal':
-            proj = d3.geoConicConformal().parallels([20, 60]);
+            proj = d3.geoConicConformal().parallels([30, 60]);
             break;
           case 'ConicEqualArea':
             proj = d3.geoConicEqualArea().parallels([20, 60]);
@@ -114,8 +114,13 @@
         ];
 
         // 針對不同投影類型設定不同的中心點
-        if (type === 'Mercator' || type === 'TransverseMercator' || type === 'Equirectangular') {
-          // 圓柱投影使用標準配置，不旋轉
+        if (
+          type === 'Mercator' ||
+          type === 'TransverseMercator' ||
+          type === 'Equirectangular' ||
+          type === 'ConicConformal'
+        ) {
+          // 圓柱投影和 ConicConformal 使用標準配置，不旋轉
           // 不設定 rotate，讓投影保持標準配置
         } else {
           // 其他投影類型將台灣置於投影中心方向
@@ -132,25 +137,23 @@
           }
         }
 
-        // 確保所有投影都能 fit 到版面，使用更保守的縮放
+        // 使用 fitExtent 的結果，不額外縮小
         const fittedScale = proj.scale();
         let adjustedScale = fittedScale;
 
-        // 針對不同投影類型進行微調，確保都能 fit 版面
+        // 只針對特定投影類型進行微調
         if (type === 'AzimuthalEquidistant') {
-          adjustedScale = fittedScale * 0.9; // 稍微縮小確保 fit
+          adjustedScale = fittedScale * 1.2; // 稍微放大
         } else if (type === 'Mercator') {
-          adjustedScale = fittedScale * 0.85; // Mercator 容易超出，更保守
+          adjustedScale = fittedScale * 1.1; // 稍微放大
         } else if (type === 'TransverseMercator') {
-          adjustedScale = fittedScale * 0.9; // 稍微縮小
-        } else if (type.includes('Conic')) {
-          adjustedScale = fittedScale * 0.9; // 圓錐投影稍微縮小
+          adjustedScale = fittedScale * 1.1; // 稍微放大
+        } else if (type === 'ConicConformal') {
+          adjustedScale = fittedScale * 1.0; // 保持原始大小
         } else if (type === 'Equirectangular') {
-          adjustedScale = fittedScale * 0.8; // 等距圓柱投影最容易超出
-        } else if (type === 'Orthographic') {
-          adjustedScale = fittedScale * 0.95; // 正射投影稍微縮小
+          adjustedScale = fittedScale * 0.9; // 稍微縮小
         } else {
-          adjustedScale = fittedScale * 0.9; // 其他投影預設稍微縮小
+          adjustedScale = fittedScale; // 其他投影保持原始大小
         }
 
         // 應用基礎縮放比例調整
