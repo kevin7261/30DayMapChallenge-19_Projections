@@ -60,7 +60,6 @@
        * 根據投影類型創建對應的 D3.js 投影，並自動適應版面大小
        */
       const createProjection = (type, width, height) => {
-        const taiwanCenter = [120.982025, 23.973875];
         let proj;
 
         switch (type) {
@@ -68,7 +67,6 @@
             proj = d3.geoAzimuthalEqualArea();
             break;
           case 'AzimuthalEquidistant':
-            // 與 AzimuthalEqualArea 使用相同的外接圓策略（fitExtent 會統一大小）
             proj = d3.geoAzimuthalEquidistant();
             break;
           case 'Gnomonic':
@@ -78,15 +76,20 @@
             proj = d3.geoOrthographic();
             break;
           case 'Stereographic':
-            // 與其他方位投影一致，將可視範圍裁成半球，確保外接圓大小可一致 fit
             proj = d3.geoStereographic().clipAngle(90);
             break;
           case 'Albers':
             proj = d3.geoAlbers().parallels([20, 60]);
             break;
           case 'ConicConformal':
-            // 使用常見的標準緯線組合，並保留標準中心（0,0）
-            proj = d3.geoConicConformal().parallels([20, 40]);
+            // 重寫 Conic Conformal 投影以匹配參考範例
+            // 設定為北半球扇形投影，經線從北極輻射，直線
+            // 中央經線 0°，標準緯線 30° 和 60° 以涵蓋歐洲/非洲
+            proj = d3
+              .geoConicConformal()
+              .parallels([30, 60]) // 調整標準緯線以匹配範例的北半球重點
+              .rotate([0, 0, 0]) // 不旋轉，中央經線 0°
+              .center([0, 90]); // 中心置於北極以產生扇形效果
             break;
           case 'ConicEqualArea':
             proj = d3.geoConicEqualArea().parallels([20, 60]);
@@ -114,35 +117,40 @@
           [width - padding, height - padding],
         ];
 
-        // 針對不同投影類型設定不同的中心點
-        if (type === 'Mercator' || type === 'Equirectangular') {
-          // 圓柱投影使用標準配置，不旋轉
-          // 不設定 rotate，讓投影保持標準配置
-        } else {
-          // 其他投影類型將台灣置於投影中心方向
-          proj.rotate([-taiwanCenter[0], -taiwanCenter[1], 0]);
+        // 針對不同投影類型設定不同的旋轉（Conic Conformal 已在上方設定）
+        if (type !== 'ConicConformal') {
+          // 所有投影類型將中心點設為東經120度、北緯0度
+          proj.rotate([-120, 0, 0]);
         }
 
-        // 以球體作為目標做 fitExtent，統一保留 32px 邊距
+        // 根據投影類型選擇適當的 fit 目標
         try {
-          // 對於 Stereographic 投影，使用縮放比例
           if (type === 'Stereographic') {
-            // Stereographic 投影使用縮放比例，讓地圖顯示得更小
+            // Stereographic 投影使用縮放比例
             const radius = Math.min(width, height) / 2 - padding;
-            const scaleFactor = 0.8; // 縮小到80%
+            const scaleFactor = 0.8;
             proj.scale(radius * scaleFactor).translate([width / 2, height / 2]);
+          } else if (type === 'ConicConformal') {
+            // Conic Conformal 使用自訂 graticule 涵蓋從北緯90°到南緯90°
+            const graticule = d3
+              .geoGraticule()
+              .extent([
+                [-180, -90],
+                [180, 90],
+              ]) // 涵蓋從南緯90°到北緯90°
+              .step([10, 10]); // 細緻網格
+            proj.fitExtent(extent, graticule.outline()); // fit 到完整地球輪廓
           } else {
-            // 其他投影使用標準 fitExtent
+            // 其他投影使用球體
             proj.center([0, 0]).fitExtent(extent, { type: 'Sphere' });
           }
         } catch (e) {
           // eslint-disable-next-line no-console
           console.error('[MapTab] fitExtent 失敗:', e);
+          // 降級策略：使用手動縮放和平移
+          const scale = Math.min(width, height) / 2 - padding;
+          proj.scale(scale).translate([width / 2, height / 2]);
         }
-
-        // 統一縮放策略：所有方位投影的外接圓大小一致；不再對 Stereographic 另行縮放
-        const fittedScale = proj.scale();
-        proj.scale(fittedScale);
 
         return proj;
       };
@@ -165,7 +173,32 @@
         path = d3.geoPath().projection(projection);
 
         // 更新地圖外框
-        g.select('path.sphere').attr('d', path);
+        // 先移除舊的邊框
+        g.select('.sphere').remove();
+
+        // 根據投影類型繪製新的邊框
+        if (type === 'Stereographic') {
+          // 繪製方形邊框
+          const padding = 32;
+          g.insert('rect', ':first-child')
+            .attr('class', 'sphere')
+            .attr('x', padding)
+            .attr('y', padding)
+            .attr('width', width - padding * 2)
+            .attr('height', height - padding * 2)
+            .attr('fill', 'none')
+            .attr('stroke', '#999999')
+            .attr('stroke-width', 2);
+        } else {
+          // 其他投影使用圓形/球體邊界
+          g.insert('path', ':first-child')
+            .datum({ type: 'Sphere' })
+            .attr('class', 'sphere')
+            .attr('d', path)
+            .attr('fill', 'none')
+            .attr('stroke', '#999999')
+            .attr('stroke-width', 2);
+        }
 
         // 更新經緯線網格
         g.selectAll('path.grid-line').attr('d', path);
@@ -334,13 +367,30 @@
           console.log('[MapTab] 開始繪製地圖，國家數量:', countries.features?.length);
 
           // 先繪製地圖外框（投影邊界）
-          g.append('path')
-            .datum({ type: 'Sphere' })
-            .attr('class', 'sphere')
-            .attr('d', path)
-            .attr('fill', 'none')
-            .attr('stroke', '#999999')
-            .attr('stroke-width', 2);
+          // Stereographic 使用方形邊框，其他投影使用球體邊界
+          if (currentProjectionType.value === 'Stereographic') {
+            // 繪製方形邊框
+            const rect = mapContainer.value.getBoundingClientRect();
+            const padding = 32;
+            g.append('rect')
+              .attr('class', 'sphere')
+              .attr('x', padding)
+              .attr('y', padding)
+              .attr('width', rect.width - padding * 2)
+              .attr('height', rect.height - padding * 2)
+              .attr('fill', 'none')
+              .attr('stroke', '#999999')
+              .attr('stroke-width', 2);
+          } else {
+            // 其他投影使用圓形/球體邊界
+            g.append('path')
+              .datum({ type: 'Sphere' })
+              .attr('class', 'sphere')
+              .attr('d', path)
+              .attr('fill', 'none')
+              .attr('stroke', '#999999')
+              .attr('stroke-width', 2);
+          }
 
           // 繪製經緯線網格
           const gridData = generateGridLines();
@@ -407,7 +457,32 @@
         path = d3.geoPath().projection(projection);
 
         // 更新地圖外框
-        g.select('path.sphere').attr('d', path);
+        // 先移除舊的邊框
+        g.select('.sphere').remove();
+
+        // 根據投影類型繪製新的邊框
+        if (currentProjectionType.value === 'Stereographic') {
+          // 繪製方形邊框
+          const padding = 32;
+          g.insert('rect', ':first-child')
+            .attr('class', 'sphere')
+            .attr('x', padding)
+            .attr('y', padding)
+            .attr('width', width - padding * 2)
+            .attr('height', height - padding * 2)
+            .attr('fill', 'none')
+            .attr('stroke', '#999999')
+            .attr('stroke-width', 2);
+        } else {
+          // 其他投影使用圓形/球體邊界
+          g.insert('path', ':first-child')
+            .datum({ type: 'Sphere' })
+            .attr('class', 'sphere')
+            .attr('d', path)
+            .attr('fill', 'none')
+            .attr('stroke', '#999999')
+            .attr('stroke-width', 2);
+        }
 
         // 更新經緯線網格
         g.selectAll('path.grid-line').attr('d', path);
