@@ -123,6 +123,12 @@ export const useDataStore = defineStore(
             type: 'Armadillo',
             scale: 100,
           },
+          {
+            layerId: 'Bonne',
+            layerName: 'Bonne',
+            type: 'Bonne',
+            scale: 100,
+          },
         ],
       },
     ]);

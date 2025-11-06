@@ -18,7 +18,7 @@
 
   import { ref, onMounted, onUnmounted, watch, nextTick, computed } from 'vue';
   import * as d3 from 'd3';
-  import { geoAitoff, geoArmadillo } from 'd3-geo-projection';
+  import { geoAitoff, geoArmadillo, geoBonne } from 'd3-geo-projection';
   import { useDataStore } from '@/stores/dataStore.js';
 
   export default {
@@ -117,6 +117,9 @@
           case 'Armadillo':
             proj = geoArmadillo();
             break;
+          case 'Bonne':
+            proj = geoBonne();
+            break;
           default:
             proj = d3.geoAzimuthalEquidistant();
         }
@@ -145,8 +148,8 @@
             proj.fitExtent(extent, { type: 'Sphere' });
             const currentScale = proj.scale();
             proj.scale(currentScale * conicConformalScale.value);
-          } else if (type === 'Aitoff' || type === 'Armadillo') {
-            // Aitoff 和 Armadillo 投影：不支持 center 方法，只使用 rotate 和 fitExtent
+          } else if (type === 'Aitoff' || type === 'Armadillo' || type === 'Bonne') {
+            // Aitoff、Armadillo 和 Bonne 投影：不支持 center 方法，只使用 rotate 和 fitExtent
             proj.fitExtent(extent, { type: 'Sphere' });
           } else {
             // 其他投影使用球體
@@ -228,6 +231,26 @@
           .attr('stroke', '#666666')
           .attr('stroke-width', 2)
           .attr('opacity', 1);
+
+        // 更新台灣地理中心點位置
+        const taiwanCenter = [120.9820246, 23.9738747]; // [經度, 緯度]
+        const taiwanCenterPoint = projection(taiwanCenter);
+        if (taiwanCenterPoint) {
+          // 如果圓點已存在，更新位置；否則創建新的
+          const existingMarker = g.select('.taiwan-center-marker');
+          if (existingMarker.empty()) {
+            g.append('circle')
+              .attr('class', 'taiwan-center-marker')
+              .attr('cx', taiwanCenterPoint[0])
+              .attr('cy', taiwanCenterPoint[1])
+              .attr('r', 4)
+              .attr('fill', '#0066ff')
+              .attr('stroke', '#ffffff')
+              .attr('stroke-width', 1);
+          } else {
+            existingMarker.attr('cx', taiwanCenterPoint[0]).attr('cy', taiwanCenterPoint[1]);
+          }
+        }
 
         // 移除距離圓圈繪製
 
@@ -459,6 +482,21 @@
             .attr('stroke-width', 1)
             .attr('opacity', 0.8);
 
+          // 繪製台灣地理中心點（藍色圓點）
+          // 台灣地理中心：23°58′25.9486″N 120°58′55.2886″E
+          const taiwanCenter = [120.9820246, 23.9738747]; // [經度, 緯度]
+          const taiwanCenterPoint = projection(taiwanCenter);
+          if (taiwanCenterPoint) {
+            g.append('circle')
+              .attr('class', 'taiwan-center-marker')
+              .attr('cx', taiwanCenterPoint[0])
+              .attr('cy', taiwanCenterPoint[1])
+              .attr('r', 4)
+              .attr('fill', '#0066ff')
+              .attr('stroke', '#ffffff')
+              .attr('stroke-width', 1);
+          }
+
           // 距離圓圈功能已移除
 
           console.log('[MapTab] 世界地圖繪製完成，已繪製', countries.features?.length, '個國家');
@@ -519,6 +557,16 @@
 
         // 更新經緯線網格（確保在上層）
         g.selectAll('path.grid-line').attr('d', path);
+
+        // 更新台灣地理中心點位置
+        const taiwanCenter = [120.9820246, 23.9738747]; // [經度, 緯度]
+        const taiwanCenterPoint = projection(taiwanCenter);
+        if (taiwanCenterPoint) {
+          const existingMarker = g.select('.taiwan-center-marker');
+          if (!existingMarker.empty()) {
+            existingMarker.attr('cx', taiwanCenterPoint[0]).attr('cy', taiwanCenterPoint[1]);
+          }
+        }
 
         // 不再繪製距離圓
 
