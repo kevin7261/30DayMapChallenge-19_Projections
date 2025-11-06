@@ -111,6 +111,12 @@ export const useDataStore = defineStore(
             type: 'TransverseMercator',
             scale: 70,
           },
+          {
+            layerId: 'Aitoff',
+            layerName: 'Aitoff',
+            type: 'Aitoff',
+            scale: 100,
+          },
         ],
       },
     ]);

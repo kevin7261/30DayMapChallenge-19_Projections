@@ -18,6 +18,7 @@
 
   import { ref, onMounted, onUnmounted, watch, nextTick, computed } from 'vue';
   import * as d3 from 'd3';
+  import { geoAitoff } from 'd3-geo-projection';
   import { useDataStore } from '@/stores/dataStore.js';
 
   export default {
@@ -108,6 +109,9 @@
           case 'TransverseMercator':
             proj = d3.geoTransverseMercator();
             break;
+          case 'Aitoff':
+            proj = geoAitoff();
+            break;
           default:
             proj = d3.geoAzimuthalEquidistant();
         }
@@ -136,6 +140,9 @@
             proj.fitExtent(extent, { type: 'Sphere' });
             const currentScale = proj.scale();
             proj.scale(currentScale * conicConformalScale.value);
+          } else if (type === 'Aitoff') {
+            // Aitoff 投影：不支持 center 方法，只使用 rotate 和 fitExtent
+            proj.fitExtent(extent, { type: 'Sphere' });
           } else {
             // 其他投影使用球體
             proj.center([0, 0]).fitExtent(extent, { type: 'Sphere' });
