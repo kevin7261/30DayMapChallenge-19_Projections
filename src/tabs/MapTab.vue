@@ -18,7 +18,7 @@
 
   import { ref, onMounted, onUnmounted, watch, nextTick, computed } from 'vue';
   import * as d3 from 'd3';
-  import { geoAitoff } from 'd3-geo-projection';
+  import { geoAitoff, geoArmadillo } from 'd3-geo-projection';
   import { useDataStore } from '@/stores/dataStore.js';
 
   export default {
@@ -39,6 +39,8 @@
       let path = null;
       let zoom = null;
       let g = null;
+      let gBorder = null; // 邊框組（不受裁剪影響）
+      let clipPathId = null;
 
       // 🎛️ 地圖控制狀態
       const isMapReady = ref(false);
@@ -112,6 +114,9 @@
           case 'Aitoff':
             proj = geoAitoff();
             break;
+          case 'Armadillo':
+            proj = geoArmadillo();
+            break;
           default:
             proj = d3.geoAzimuthalEquidistant();
         }
@@ -140,8 +145,8 @@
             proj.fitExtent(extent, { type: 'Sphere' });
             const currentScale = proj.scale();
             proj.scale(currentScale * conicConformalScale.value);
-          } else if (type === 'Aitoff') {
-            // Aitoff 投影：不支持 center 方法，只使用 rotate 和 fitExtent
+          } else if (type === 'Aitoff' || type === 'Armadillo') {
+            // Aitoff 和 Armadillo 投影：不支持 center 方法，只使用 rotate 和 fitExtent
             proj.fitExtent(extent, { type: 'Sphere' });
           } else {
             // 其他投影使用球體
@@ -187,23 +192,18 @@
         projection = createProjection(type, width, height);
         path = d3.geoPath().projection(projection);
 
+        // 更新裁剪路徑
+        if (clipPathId) {
+          svg.select(`#${clipPathId} path`).datum({ type: 'Sphere' }).attr('d', path);
+        }
+
         // 更新地圖外框
         // 先移除舊的邊框
-        g.select('.sphere').remove();
-
-        // 根據投影類型繪製新的邊框
-        if (type === 'Stereographic') {
-          // Stereographic 投影使用圓形邊框（球體邊界）
-          g.insert('path', ':first-child')
-            .datum({ type: 'Sphere' })
-            .attr('class', 'sphere')
-            .attr('d', path)
-            .attr('fill', 'none')
-            .attr('stroke', '#999999')
-            .attr('stroke-width', 2);
-        } else {
-          // 其他投影使用圓形/球體邊界
-          g.insert('path', ':first-child')
+        if (gBorder) {
+          gBorder.selectAll('path.sphere').remove();
+          // 繪製新的邊框（在邊框組中，不受裁剪影響）
+          gBorder
+            .append('path')
             .datum({ type: 'Sphere' })
             .attr('class', 'sphere')
             .attr('d', path)
@@ -294,8 +294,17 @@
           // 創建路徑生成器
           path = d3.geoPath().projection(projection);
 
-          // 創建容器組
-          g = svg.append('g');
+          // 創建裁剪路徑（用於裁剪超出投影邊界的內容）
+          clipPathId = `clip-${Math.random().toString(36).substr(2, 9)}`;
+          const defs = svg.append('defs');
+          const clipPath = defs.append('clipPath').attr('id', clipPathId);
+          clipPath.append('path').datum({ type: 'Sphere' }).attr('d', path);
+
+          // 創建容器組（受裁剪影響，用於地圖內容）
+          g = svg.append('g').attr('clip-path', `url(#${clipPathId})`);
+
+          // 創建邊框組（不受裁剪影響，用於顯示投影邊界）
+          gBorder = svg.append('g').attr('class', 'border-group');
 
           // 設置縮放行為（禁用所有互動）
           zoom = d3
@@ -409,15 +418,17 @@
           const countries = worldData.value;
           console.log('[MapTab] 開始繪製地圖，國家數量:', countries.features?.length);
 
-          // 先繪製地圖外框（投影邊界）
-          // 所有投影都使用圓形/球體邊界
-          g.append('path')
-            .datum({ type: 'Sphere' })
-            .attr('class', 'sphere')
-            .attr('d', path)
-            .attr('fill', 'none')
-            .attr('stroke', '#999999')
-            .attr('stroke-width', 2);
+          // 先繪製地圖外框（投影邊界）- 在邊框組中繪製，不受裁剪影響
+          if (gBorder) {
+            gBorder
+              .append('path')
+              .datum({ type: 'Sphere' })
+              .attr('class', 'sphere')
+              .attr('d', path)
+              .attr('fill', 'none')
+              .attr('stroke', '#999999')
+              .attr('stroke-width', 2);
+          }
 
           // 繪製國家邊界（先繪製，作為底層）
           g.selectAll('path.country')
@@ -483,18 +494,25 @@
         projection = createProjection(currentProjectionType.value, width, height);
         path = d3.geoPath().projection(projection);
 
+        // 更新裁剪路徑
+        if (clipPathId) {
+          svg.select(`#${clipPathId} path`).datum({ type: 'Sphere' }).attr('d', path);
+        }
+
         // 更新地圖外框
         // 先移除舊的邊框
-        g.select('.sphere').remove();
-
-        // 所有投影都使用圓形/球體邊界
-        g.insert('path', ':first-child')
-          .datum({ type: 'Sphere' })
-          .attr('class', 'sphere')
-          .attr('d', path)
-          .attr('fill', 'none')
-          .attr('stroke', '#999999')
-          .attr('stroke-width', 2);
+        if (gBorder) {
+          gBorder.selectAll('path.sphere').remove();
+          // 繪製新的邊框（在邊框組中，不受裁剪影響）
+          gBorder
+            .append('path')
+            .datum({ type: 'Sphere' })
+            .attr('class', 'sphere')
+            .attr('d', path)
+            .attr('fill', 'none')
+            .attr('stroke', '#999999')
+            .attr('stroke-width', 2);
+        }
 
         // 更新所有國家路徑
         g.selectAll('path.country').attr('d', path);
@@ -593,6 +611,8 @@
         path = null;
         zoom = null;
         g = null;
+        gBorder = null;
+        clipPathId = null;
         isMapReady.value = false;
       });
 

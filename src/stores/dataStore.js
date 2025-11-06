@@ -117,6 +117,12 @@ export const useDataStore = defineStore(
             type: 'Aitoff',
             scale: 100,
           },
+          {
+            layerId: 'Armadillo',
+            layerName: 'Armadillo',
+            type: 'Armadillo',
+            scale: 100,
+          },
         ],
       },
     ]);
