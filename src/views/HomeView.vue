@@ -34,9 +34,10 @@
        */
       const setMapInstance = (map) => {
         dataStore.setMapInstance(map);
-        if (map?.setMapCenter) {
-          nextTick(() => map.setMapCenter(centerMode.value));
-        }
+        nextTick(() => {
+          map?.setMapCenter?.(centerMode.value);
+          map?.setViewMode?.(viewMode.value);
+        });
       };
 
       /**
@@ -60,14 +61,24 @@
       // 🌍 當前選中的投影類型（預設為 Azimuthal Equidistant）
       const currentProjection = ref('Azimuthal Equidistant');
       const centerMode = ref('origin');
+      const viewMode = ref('world');
 
       const setCenterMode = (mode) => {
         centerMode.value = mode;
-        const map = dataStore.mapInstance?.setMapCenter
-          ? dataStore.mapInstance
-          : dataStore.mapInstance?.value;
+        const map = dataStore.mapInstance?.value ?? dataStore.mapInstance;
         if (map?.setMapCenter) {
           nextTick(() => map.setMapCenter(mode));
+        }
+      };
+
+      const setViewMode = (mode) => {
+        viewMode.value = mode === 'taiwan' ? 'taiwan' : 'world';
+        const map = dataStore.mapInstance?.value ?? dataStore.mapInstance;
+        if (map?.setViewMode) {
+          nextTick(() => map.setViewMode(viewMode.value));
+        }
+        if (viewMode.value === 'taiwan') {
+          setCenterMode('taiwan');
         }
       };
 
@@ -81,10 +92,12 @@
         setMapInstance,
         changeProjection,
         setCenterMode,
+        setViewMode,
         projections,
         defineStore,
         currentProjection,
         centerMode,
+        viewMode,
       };
     },
   };
@@ -167,6 +180,35 @@
               title="地圖中心：東經120° 赤道"
             >
               經度120
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 🧭 右下角視圖切換按鈕 -->
+      <div
+        class="position-absolute bottom-0 end-0 p-3 d-flex flex-column align-items-end"
+        style="gap: 0.5rem; z-index: 1000;"
+      >
+        <div class="bg-dark bg-opacity-75 rounded-3 p-3">
+          <div class="d-flex flex-column gap-2">
+            <button
+              type="button"
+              class="btn border-0 my-country-btn my-font-xs-white px-4 py-1"
+              :class="[viewMode === 'world' ? 'active' : '']"
+              @click="setViewMode('world')"
+              title="顯示完整世界地圖"
+            >
+              世界地圖
+            </button>
+            <button
+              type="button"
+              class="btn border-0 my-country-btn my-font-xs-white px-4 py-1"
+              :class="[viewMode === 'taiwan' ? 'active' : '']"
+              @click="setViewMode('taiwan')"
+              title="僅顯示台灣"
+            >
+              台灣
             </button>
           </div>
         </div>

@@ -151,6 +151,7 @@
       };
       const currentCenterMode = ref('origin');
       const currentCenterCoords = ref(centerPresets.origin);
+      const currentViewMode = ref('world');
 
       // ConicConformal 投影的放大倍率
       const conicConformalScale = ref(5000);
@@ -501,21 +502,18 @@
           [padding, padding],
           [width - padding, height - padding],
         ];
+        const fitTarget = getFitTarget();
 
         // 針對不同投影類型設定不同的旋轉
         if (proj.rotate) {
           // 根據所選中心設定投影旋轉
-          // 只對支持 rotate 方法的投影進行旋轉
           try {
             proj.rotate(rotation);
           } catch (e) {
             console.warn('[MapTab] rotate 失敗:', type, e);
           }
         }
-        // ConicConformal 投影已經在投影定義中設定了中心點，不需要額外的旋轉
-        // 某些投影（如 Chamberlin、TwoPoint 系列）不支持 rotate 方法
 
-        // 定義支持 center 方法的投影（主要是 D3 核心投影的 Conic 系列）
         const supportsCenterMethod = [
           'Albers',
           'ConicEqualArea',
@@ -526,33 +524,23 @@
           'Orthographic',
         ];
 
-        // 根據投影類型選擇適當的 fit 目標
         try {
-          if (type === 'Stereographic') {
-            // Stereographic 投影：使用完整地球球體，讓投影自然填滿方形視野
-            proj.fitExtent(extent, { type: 'Sphere' });
-          } else if (type === 'ConicConformal') {
-            // Conic Conformal 投影：先 fit 再應用自定義放大倍率
-            proj.fitExtent(extent, { type: 'Sphere' });
-            const currentScale = proj.scale();
-            proj.scale(currentScale * conicConformalScale.value);
-          } else if (supportsCenterMethod.includes(type) && proj.center) {
-            // 這些投影支持 center 方法
-            proj.center([0, 0]).fitExtent(extent, { type: 'Sphere' });
-          } else if (proj.fitExtent) {
-            // 大部分 d3-geo-projection 的投影不支持 center 方法，只使用 fitExtent
-            proj.fitExtent(extent, { type: 'Sphere' });
-          } else {
-            // 降級策略：使用手動縮放和平移
-            const scale = Math.min(width, height) / 2 - padding;
-            if (proj.scale && proj.translate) {
-              proj.scale(scale).translate([width / 2, height / 2]);
+          if (proj.fitExtent) {
+            if (type === 'ConicConformal') {
+              proj.fitExtent(extent, fitTarget);
+              const currentScale = proj.scale();
+              proj.scale(currentScale * conicConformalScale.value);
+            } else if (supportsCenterMethod.includes(type) && proj.center && currentViewMode.value === 'world') {
+              proj.center([0, 0]).fitExtent(extent, fitTarget);
+            } else {
+              proj.fitExtent(extent, fitTarget);
             }
+          } else if (proj.scale && proj.translate) {
+            const scale = Math.min(width, height) / 2 - padding;
+            proj.scale(scale).translate([width / 2, height / 2]);
           }
         } catch (e) {
-          // eslint-disable-next-line no-console
           console.error('[MapTab] fitExtent 失敗:', type, e);
-          // 降級策略：使用手動縮放和平移
           try {
             const scale = Math.min(width, height) / 2 - padding;
             if (proj.scale && proj.translate) {
@@ -600,65 +588,42 @@
           svg.select(`#${clipPathId} path`).datum({ type: 'Sphere' }).attr('d', path);
         }
 
-        // 更新地圖外框
-        // 先移除舊的邊框
-        if (gBorder) {
-          gBorder.selectAll('path.sphere').remove();
-          // 繪製新的邊框（在邊框組中，不受裁剪影響）
-          gBorder
-            .append('path')
-            .datum({ type: 'Sphere' })
-            .attr('class', 'sphere')
-            .attr('d', path)
-            .attr('fill', 'none')
-            .attr('stroke', '#999999')
-            .attr('stroke-width', 2);
-        }
+        renderSphereBorder();
+        renderCountries();
+        renderGridLines();
+        renderTaiwanCenterMarker();
 
-        // 更新所有國家路徑
-        g.selectAll('path.country').attr('d', path);
-
-        // 重新生成經緯線網格（根據新的投影類型）
-        g.selectAll('path.grid-line').remove();
-        const gridData = generateGridLines(type);
-        g.selectAll('path.grid-line')
-          .data(gridData.features)
-          .enter()
-          .append('path')
-          .attr('class', 'grid-line')
-          .attr('d', path)
-          .attr('fill', 'none')
-          .attr('stroke', '#666666')
-          .attr('stroke-width', 2)
-          .attr('opacity', 1);
-
-        const taiwanPoint = projection(TAIWAN_CENTER);
-        if (taiwanPoint) {
-          const marker = g.select('.taiwan-center-marker');
-          if (marker.empty()) {
-            g.append('circle')
-              .attr('class', 'taiwan-center-marker')
-              .attr('cx', taiwanPoint[0])
-              .attr('cy', taiwanPoint[1])
-              .attr('r', 4)
-              .attr('fill', '#0066ff')
-              .attr('stroke', '#ffffff')
-              .attr('stroke-width', 1.5);
-          } else {
-            marker.attr('cx', taiwanPoint[0]).attr('cy', taiwanPoint[1]);
-          }
-        }
-
-        // 移除距離圓圈繪製
-
-        // eslint-disable-next-line no-console
-        console.log('[MapTab] 投影切換完成，類型:', type, '縮放:', scale);
+        console.log('[MapTab] 投影切換完成，類型:', type, '縮放:', scale, '模式:', currentViewMode.value);
       };
 
       const setMapCenter = (mode) => {
         const preset = centerPresets[mode] || centerPresets.origin;
         currentCenterMode.value = mode;
         currentCenterCoords.value = preset;
+        if (isMapReady.value) {
+          changeProjection(currentProjectionType.value, currentScale.value);
+        }
+      };
+
+      const setViewMode = (mode) => {
+        const normalized = mode === 'taiwan' ? 'taiwan' : 'world';
+        if (currentViewMode.value === normalized && isMapReady.value) {
+          if (normalized === 'taiwan' && currentCenterMode.value !== 'taiwan') {
+            setMapCenter('taiwan');
+          }
+          return;
+        }
+
+        const previousMode = currentViewMode.value;
+        currentViewMode.value = normalized;
+
+        if (normalized === 'taiwan' && currentCenterMode.value !== 'taiwan') {
+          setMapCenter('taiwan');
+          if (previousMode !== normalized) {
+            return;
+          }
+        }
+
         if (isMapReady.value) {
           changeProjection(currentProjectionType.value, currentScale.value);
         }
@@ -753,6 +718,7 @@
             navigateToLocation: () => navigateToLocation(),
             changeProjection: (type, scale) => changeProjection(type, scale),
             setMapCenter: (mode) => setMapCenter(mode),
+            setViewMode: (mode) => setViewMode(mode),
           };
 
           emit('map-ready', mapInterface);
@@ -834,6 +800,120 @@
         };
       };
 
+      const getFeaturesForView = () => {
+        const data = worldData.value;
+        if (!data?.features) return [];
+
+        if (currentViewMode.value === 'taiwan') {
+          return data.features.filter((feature) => {
+            const countryName =
+              feature.properties?.name ||
+              feature.properties?.ADMIN ||
+              feature.properties?.NAME ||
+              feature.properties?.adm0_a3 ||
+              feature.properties?.ADM0_A3;
+            return dataStore.isHomeCountry(countryName);
+          });
+        }
+
+        return data.features;
+      };
+
+      const getFitTarget = () => ({ type: 'Sphere' });
+
+      const featureKey = (feature, index) =>
+        feature.properties?.ADM0_A3 ||
+        feature.properties?.adm0_a3 ||
+        feature.properties?.ISO_A3 ||
+        feature.properties?.iso_a3 ||
+        feature.properties?.NAME ||
+        feature.properties?.ADMIN ||
+        feature.properties?.name ||
+        feature.id ||
+        `idx-${index}`;
+
+      const renderSphereBorder = () => {
+        if (!gBorder) return;
+        gBorder.selectAll('path.sphere').remove();
+        if (currentViewMode.value === 'world') {
+          gBorder
+            .append('path')
+            .datum({ type: 'Sphere' })
+            .attr('class', 'sphere')
+            .attr('d', path)
+            .attr('fill', 'none')
+            .attr('stroke', '#999999')
+            .attr('stroke-width', 2);
+        }
+      };
+
+      const renderCountries = () => {
+        if (!g || !worldData.value) return;
+        const features = getFeaturesForView();
+        const selection = g.selectAll('path.country').data(features, featureKey);
+        selection.exit().remove();
+        const merged = selection
+          .enter()
+          .append('path')
+          .attr('class', 'country')
+          .merge(selection);
+
+        merged
+          .attr('d', path)
+          .attr('fill', (d) => {
+            const countryName =
+              d.properties.name || d.properties.ADMIN || d.properties.NAME;
+            if (dataStore.isHomeCountry(countryName)) return '#ff0000';
+            return '#d0d0d0';
+          })
+          .attr('stroke', '#666666')
+          .attr('stroke-width', 0.5);
+      };
+
+      const renderGridLines = () => {
+        if (!g) return;
+        const gridData = generateGridLines(currentProjectionType.value);
+        const selection = g
+          .selectAll('path.grid-line')
+          .data(gridData.features, (d, i) => d?.id || `grid-${i}`);
+        selection.exit().remove();
+        const merged = selection
+          .enter()
+          .append('path')
+          .attr('class', 'grid-line')
+          .merge(selection);
+
+        merged
+          .attr('d', path)
+          .attr('fill', 'none')
+          .attr('stroke', '#999999')
+          .attr('stroke-width', currentViewMode.value === 'taiwan' ? 0.5 : 1)
+          .attr('opacity', currentViewMode.value === 'taiwan' ? 0.6 : 0.8);
+      };
+
+      const renderTaiwanCenterMarker = () => {
+        if (!g || !projection) return;
+        const taiwanPoint = projection(TAIWAN_CENTER);
+        const selection = g.selectAll('circle.taiwan-center-marker');
+        if (!taiwanPoint) {
+          selection.remove();
+          return;
+        }
+
+        const merged = selection
+          .data([taiwanPoint])
+          .enter()
+          .append('circle')
+          .attr('class', 'taiwan-center-marker')
+          .attr('r', 4)
+          .attr('fill', '#0066ff')
+          .attr('stroke', '#ffffff')
+          .attr('stroke-width', 1.5)
+          .merge(selection);
+
+        merged.attr('cx', (d) => d[0]).attr('cy', (d) => d[1]);
+      };
+
       /**
        * 🎨 繪製世界地圖
        */
@@ -844,66 +924,15 @@
         }
 
         try {
-          // 直接使用 GeoJSON 數據（無需轉換）
-          const countries = worldData.value;
-          console.log('[MapTab] 開始繪製地圖，國家數量:', countries.features?.length);
+          const features = getFeaturesForView();
+          console.log('[MapTab] 開始繪製地圖，特徵數量:', features.length);
 
-          // 先繪製地圖外框（投影邊界）- 在邊框組中繪製，不受裁剪影響
-          if (gBorder) {
-            gBorder
-              .append('path')
-              .datum({ type: 'Sphere' })
-              .attr('class', 'sphere')
-              .attr('d', path)
-              .attr('fill', 'none')
-              .attr('stroke', '#999999')
-              .attr('stroke-width', 2);
-          }
+          renderSphereBorder();
+          renderCountries();
+          renderGridLines();
+          renderTaiwanCenterMarker();
 
-          // 繪製國家邊界（先繪製，作為底層）
-          g.selectAll('path.country')
-            .data(countries.features)
-            .enter()
-            .append('path')
-            .attr('d', path)
-            .attr('fill', (d) => {
-              // 檢查國家顏色：台灣(鮮紅色) &gt; 其他(淺灰色)
-              const countryName = d.properties.name || d.properties.ADMIN || d.properties.NAME;
-              if (dataStore.isHomeCountry(countryName)) return '#ff0000'; // 台灣：鮮紅色
-              return '#d0d0d0'; // 其他：淺灰色
-            })
-            .attr('stroke', '#666666')
-            .attr('stroke-width', 0.5)
-            .attr('class', 'country');
-
-          // 繪製經緯線網格（後繪製，顯示在上層）
-          const gridData = generateGridLines(currentProjectionType.value);
-          g.selectAll('path.grid-line')
-            .data(gridData.features)
-            .enter()
-            .append('path')
-            .attr('class', 'grid-line')
-            .attr('d', path)
-            .attr('fill', 'none')
-            .attr('stroke', '#999999')
-            .attr('stroke-width', 1)
-            .attr('opacity', 0.8);
-
-          const taiwanPoint = projection(TAIWAN_CENTER);
-          if (taiwanPoint) {
-            g.append('circle')
-              .attr('class', 'taiwan-center-marker')
-              .attr('cx', taiwanPoint[0])
-              .attr('cy', taiwanPoint[1])
-              .attr('r', 4)
-              .attr('fill', '#0066ff')
-              .attr('stroke', '#ffffff')
-              .attr('stroke-width', 1.5);
-          }
-
-          // 距離圓圈功能已移除
-
-          console.log('[MapTab] 世界地圖繪製完成，已繪製', countries.features?.length, '個國家');
+          console.log('[MapTab] 地圖繪製完成，模式:', currentViewMode.value);
         } catch (error) {
           console.error('[MapTab] 世界地圖繪製失敗:', error);
         }
@@ -941,48 +970,12 @@
           svg.select(`#${clipPathId} path`).datum({ type: 'Sphere' }).attr('d', path);
         }
 
-        // 更新地圖外框
-        // 先移除舊的邊框
-        if (gBorder) {
-          gBorder.selectAll('path.sphere').remove();
-          // 繪製新的邊框（在邊框組中，不受裁剪影響）
-          gBorder
-            .append('path')
-            .datum({ type: 'Sphere' })
-            .attr('class', 'sphere')
-            .attr('d', path)
-            .attr('fill', 'none')
-            .attr('stroke', '#999999')
-            .attr('stroke-width', 2);
-        }
+        renderSphereBorder();
+        renderCountries();
+        renderGridLines();
+        renderTaiwanCenterMarker();
 
-        // 更新所有國家路徑
-        g.selectAll('path.country').attr('d', path);
-
-        // 更新經緯線網格（確保在上層）
-        g.selectAll('path.grid-line').attr('d', path);
-
-        const taiwanPoint = projection(TAIWAN_CENTER);
-        if (taiwanPoint) {
-          const marker = g.select('.taiwan-center-marker');
-          if (marker.empty()) {
-            g.append('circle')
-              .attr('class', 'taiwan-center-marker')
-              .attr('cx', taiwanPoint[0])
-              .attr('cy', taiwanPoint[1])
-              .attr('r', 4)
-              .attr('fill', '#0066ff')
-              .attr('stroke', '#ffffff')
-              .attr('stroke-width', 1.5);
-          } else {
-            marker.attr('cx', taiwanPoint[0]).attr('cy', taiwanPoint[1]);
-          }
-        }
-
-        // 不再繪製距離圓
-
-        // eslint-disable-next-line no-console
-        console.log('[MapTab] 地圖尺寸更新完成');
+        console.log('[MapTab] 地圖尺寸更新完成，模式:', currentViewMode.value);
       };
 
       /**
@@ -1110,6 +1103,7 @@
         navigateToLocation,
         changeProjection,
         setMapCenter,
+        setViewMode,
         // ConicConformal 相關
         conicConformalScale,
         setConicConformalScale,
