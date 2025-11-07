@@ -82,7 +82,6 @@
     geoMtFlatPolarParabolic,
     geoMtFlatPolarQuartic,
     geoMtFlatPolarSinusoidal,
-    geoNaturalEarth1 as geoNaturalEarth,
     geoNaturalEarth2,
     geoNellHammer,
     geoNicolosi,
@@ -203,7 +202,7 @@
             proj = d3.geoTransverseMercator();
             break;
           case 'NaturalEarth':
-            proj = geoNaturalEarth();
+            proj = d3.geoNaturalEarth1();
             break;
           case 'Airy':
             proj = geoAiry();
@@ -239,7 +238,8 @@
             proj = geoBromley();
             break;
           case 'Chamberlin':
-            proj = geoChamberlin([0, 0], [0, 0], [0, 0]); // 需要3个点参数
+            // Chamberlin 需要3个点参数，使用台湾和周边地区
+            proj = geoChamberlin([120.98, 23.97], [121.5, 25.0], [120.0, 22.0]);
             break;
           case 'ChamberlinAfrica':
             proj = geoChamberlinAfrica();
@@ -440,10 +440,12 @@
             proj = geoTimes();
             break;
           case 'TwoPointAzimuthal':
-            proj = geoTwoPointAzimuthal([0, 0], [0, 0]); // 需要2个点参数
+            // TwoPoint 需要2个点参数，使用台湾和东京
+            proj = geoTwoPointAzimuthal([120.98, 23.97], [139.69, 35.68]);
             break;
           case 'TwoPointEquidistant':
-            proj = geoTwoPointEquidistant([0, 0], [0, 0]); // 需要2个点参数
+            // TwoPoint 需要2个点参数，使用台湾和东京
+            proj = geoTwoPointEquidistant([120.98, 23.97], [139.69, 35.68]);
             break;
           case 'VanDerGrinten':
             proj = geoVanDerGrinten();
@@ -476,6 +478,12 @@
             proj = d3.geoAzimuthalEquidistant();
         }
 
+        // 確保投影對象有效
+        if (!proj) {
+          console.error('[MapTab] 投影創建失敗:', type);
+          proj = d3.geoAzimuthalEquidistant(); // 降級到預設投影
+        }
+
         // 使用幾何邊界自動適應視窗（保留 32px 邊距）
         const padding = 32;
         const extent = [
@@ -484,11 +492,17 @@
         ];
 
         // 針對不同投影類型設定不同的旋轉
-        if (type !== 'ConicConformal') {
+        if (type !== 'ConicConformal' && proj.rotate) {
           // 大部分投影類型將中心點設為東經120度、北緯0度
-          proj.rotate([-120, 0, 0]);
+          // 只對支持 rotate 方法的投影進行旋轉
+          try {
+            proj.rotate([-120, 0, 0]);
+          } catch (e) {
+            console.warn('[MapTab] rotate 失敗:', type, e);
+          }
         }
         // ConicConformal 投影已經在投影定義中設定了中心點，不需要額外的旋轉
+        // 某些投影（如 Chamberlin、TwoPoint 系列）不支持 rotate 方法
 
         // 定義支持 center 方法的投影（主要是 D3 核心投影的 Conic 系列）
         const supportsCenterMethod = [
@@ -511,19 +525,31 @@
             proj.fitExtent(extent, { type: 'Sphere' });
             const currentScale = proj.scale();
             proj.scale(currentScale * conicConformalScale.value);
-          } else if (supportsCenterMethod.includes(type)) {
+          } else if (supportsCenterMethod.includes(type) && proj.center) {
             // 這些投影支持 center 方法
             proj.center([0, 0]).fitExtent(extent, { type: 'Sphere' });
-          } else {
+          } else if (proj.fitExtent) {
             // 大部分 d3-geo-projection 的投影不支持 center 方法，只使用 fitExtent
             proj.fitExtent(extent, { type: 'Sphere' });
+          } else {
+            // 降級策略：使用手動縮放和平移
+            const scale = Math.min(width, height) / 2 - padding;
+            if (proj.scale && proj.translate) {
+              proj.scale(scale).translate([width / 2, height / 2]);
+            }
           }
         } catch (e) {
           // eslint-disable-next-line no-console
-          console.error('[MapTab] fitExtent 失敗:', e);
+          console.error('[MapTab] fitExtent 失敗:', type, e);
           // 降級策略：使用手動縮放和平移
-          const scale = Math.min(width, height) / 2 - padding;
-          proj.scale(scale).translate([width / 2, height / 2]);
+          try {
+            const scale = Math.min(width, height) / 2 - padding;
+            if (proj.scale && proj.translate) {
+              proj.scale(scale).translate([width / 2, height / 2]);
+            }
+          } catch (e2) {
+            console.error('[MapTab] 降級策略也失敗:', type, e2);
+          }
         }
 
         return proj;
