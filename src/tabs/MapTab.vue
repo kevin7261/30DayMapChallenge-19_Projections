@@ -592,6 +592,7 @@
         renderCountries();
         renderGridLines();
         renderTaiwanCenterMarker();
+        renderTaiwanGuides();
 
         console.log('[MapTab] 投影切換完成，類型:', type, '縮放:', scale, '模式:', currentViewMode.value);
       };
@@ -835,16 +836,15 @@
       const renderSphereBorder = () => {
         if (!gBorder) return;
         gBorder.selectAll('path.sphere').remove();
-        if (currentViewMode.value === 'world') {
-          gBorder
-            .append('path')
-            .datum({ type: 'Sphere' })
-            .attr('class', 'sphere')
-            .attr('d', path)
-            .attr('fill', 'none')
-            .attr('stroke', '#999999')
-            .attr('stroke-width', 2);
-        }
+
+        gBorder
+          .append('path')
+          .datum({ type: 'Sphere' })
+          .attr('class', 'sphere')
+          .attr('d', path)
+          .attr('fill', 'none')
+          .attr('stroke', '#999999')
+          .attr('stroke-width', 2);
       };
 
       const renderCountries = () => {
@@ -868,6 +868,61 @@
           })
           .attr('stroke', '#666666')
           .attr('stroke-width', 0.5);
+      };
+
+      const renderTaiwanGuides = () => {
+        if (!g || !projection) return;
+
+        const createMeridian = (lon, id) => {
+          const coordinates = [];
+          for (let lat = -90; lat <= 90; lat += 1) {
+            coordinates.push([lon, lat]);
+          }
+          return { id, type: 'Feature', geometry: { type: 'LineString', coordinates } };
+        };
+
+        const createParallel = (lat, id) => {
+          const coordinates = [];
+          for (let lon = -180; lon <= 180; lon += 1) {
+            coordinates.push([lon, lat]);
+          }
+          return { id, type: 'Feature', geometry: { type: 'LineString', coordinates } };
+        };
+
+        const guidesData = [
+          createMeridian(TAIWAN_CENTER[0], 'guide-longitude-taiwan-east'),
+          createMeridian(TAIWAN_CENTER[0] - 180, 'guide-longitude-taiwan-west'),
+          createParallel(TAIWAN_CENTER[1], 'guide-latitude-taiwan'),
+          createMeridian(0, 'guide-longitude-0-east'),
+          createMeridian(-180, 'guide-longitude-0-west'),
+          createParallel(0, 'guide-equator'),
+        ];
+
+        const selection = g
+          .selectAll('path.taiwan-guide')
+          .data(guidesData, (d) => d.id);
+
+        selection.exit().remove();
+
+        const merged = selection
+          .enter()
+          .append('path')
+          .attr('class', 'taiwan-guide')
+          .merge(selection);
+
+        merged
+          .attr('d', (d) => path(d))
+          .attr('fill', 'none')
+          .attr('stroke', (d) =>
+            d.id === 'guide-longitude-0-east' ||
+            d.id === 'guide-longitude-0-west' ||
+            d.id === 'guide-equator'
+              ? '#00aa00'
+              : '#0066ff'
+          )
+          .attr('stroke-width', 4)
+          .attr('opacity', 0.9)
+          .raise();
       };
 
       const renderGridLines = () => {
@@ -911,7 +966,7 @@
           .attr('stroke-width', 1.5)
           .merge(selection);
 
-        merged.attr('cx', (d) => d[0]).attr('cy', (d) => d[1]);
+        merged.attr('cx', (d) => d[0]).attr('cy', (d) => d[1]).raise();
       };
 
       /**
@@ -931,6 +986,7 @@
           renderCountries();
           renderGridLines();
           renderTaiwanCenterMarker();
+          renderTaiwanGuides();
 
           console.log('[MapTab] 地圖繪製完成，模式:', currentViewMode.value);
         } catch (error) {
@@ -974,6 +1030,7 @@
         renderCountries();
         renderGridLines();
         renderTaiwanCenterMarker();
+        renderTaiwanGuides();
 
         console.log('[MapTab] 地圖尺寸更新完成，模式:', currentViewMode.value);
       };
