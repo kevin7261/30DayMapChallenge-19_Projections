@@ -18,7 +18,97 @@
 
   import { ref, onMounted, onUnmounted, watch, nextTick, computed } from 'vue';
   import * as d3 from 'd3';
-  import { geoAitoff, geoArmadillo, geoBonne } from 'd3-geo-projection';
+  import {
+    geoAiry,
+    geoAitoff,
+    geoArmadillo,
+    geoAugust,
+    geoBaker,
+    geoBerghaus,
+    geoBertin1953,
+    geoBoggs,
+    geoBonne,
+    geoBottomley,
+    geoBromley,
+    geoChamberlin,
+    geoChamberlinAfrica,
+    geoCollignon,
+    geoCraig,
+    geoCraster,
+    geoCylindricalEqualArea,
+    geoCylindricalStereographic,
+    geoEckert1,
+    geoEckert2,
+    geoEckert3,
+    geoEckert4,
+    geoEckert5,
+    geoEckert6,
+    geoEisenlohr,
+    geoFahey,
+    geoFoucaut,
+    geoFoucautSinusoidal,
+    geoGilbert,
+    geoGingery,
+    geoGinzburg4,
+    geoGinzburg5,
+    geoGinzburg6,
+    geoGinzburg8,
+    geoGinzburg9,
+    geoGringorten,
+    geoGringortenQuincuncial,
+    geoGuyou,
+    geoHammer,
+    geoHammerRetroazimuthal,
+    geoHealpix,
+    geoHill,
+    geoHomolosine,
+    geoHufnagel,
+    geoHyperelliptical,
+    geoInterruptedBoggs,
+    geoInterruptedHomolosine,
+    geoInterruptedMollweide,
+    geoInterruptedMollweideHemispheres,
+    geoInterruptedQuarticAuthalic,
+    geoInterruptedSinuMollweide,
+    geoInterruptedSinusoidal,
+    geoKavrayskiy7,
+    geoLagrange,
+    geoLarrivee,
+    geoLaskowski,
+    geoLittrow,
+    geoLoximuthal,
+    geoMiller,
+    geoMollweide,
+    geoMtFlatPolarParabolic,
+    geoMtFlatPolarQuartic,
+    geoMtFlatPolarSinusoidal,
+    geoNaturalEarth2,
+    geoNellHammer,
+    geoNicolosi,
+    geoPatterson,
+    geoPeirceQuincuncial,
+    geoPolyconic,
+    geoPolyhedralButterfly,
+    geoPolyhedralCollignon,
+    geoPolyhedralWaterman,
+    geoRectangularPolyconic,
+    geoRobinson,
+    geoSatellite,
+    geoSinuMollweide,
+    geoSinusoidal,
+    geoTimes,
+    geoTwoPointAzimuthal,
+    geoTwoPointEquidistant,
+    geoVanDerGrinten,
+    geoVanDerGrinten2,
+    geoVanDerGrinten3,
+    geoVanDerGrinten4,
+    geoWagner4,
+    geoWagner6,
+    geoWagner7,
+    geoWiechel,
+    geoWinkel3,
+  } from 'd3-geo-projection';
   import { useDataStore } from '@/stores/dataStore.js';
 
   export default {
@@ -111,14 +201,275 @@
           case 'TransverseMercator':
             proj = d3.geoTransverseMercator();
             break;
+          case 'NaturalEarth':
+            proj = d3.geoNaturalEarth();
+            break;
+          case 'Airy':
+            proj = geoAiry();
+            break;
           case 'Aitoff':
             proj = geoAitoff();
             break;
           case 'Armadillo':
             proj = geoArmadillo();
             break;
+          case 'August':
+            proj = geoAugust();
+            break;
+          case 'Baker':
+            proj = geoBaker();
+            break;
+          case 'Berghaus':
+            proj = geoBerghaus();
+            break;
+          case 'Bertin1953':
+            proj = geoBertin1953();
+            break;
+          case 'Boggs':
+            proj = geoBoggs();
+            break;
           case 'Bonne':
             proj = geoBonne();
+            break;
+          case 'Bottomley':
+            proj = geoBottomley();
+            break;
+          case 'Bromley':
+            proj = geoBromley();
+            break;
+          case 'Chamberlin':
+            proj = geoChamberlin([0, 0], [0, 0], [0, 0]); // 需要3个点参数
+            break;
+          case 'ChamberlinAfrica':
+            proj = geoChamberlinAfrica();
+            break;
+          case 'Collignon':
+            proj = geoCollignon();
+            break;
+          case 'Craig':
+            proj = geoCraig();
+            break;
+          case 'Craster':
+            proj = geoCraster();
+            break;
+          case 'CylindricalEqualArea':
+            proj = geoCylindricalEqualArea();
+            break;
+          case 'CylindricalStereographic':
+            proj = geoCylindricalStereographic();
+            break;
+          case 'Eckert1':
+            proj = geoEckert1();
+            break;
+          case 'Eckert2':
+            proj = geoEckert2();
+            break;
+          case 'Eckert3':
+            proj = geoEckert3();
+            break;
+          case 'Eckert4':
+            proj = geoEckert4();
+            break;
+          case 'Eckert5':
+            proj = geoEckert5();
+            break;
+          case 'Eckert6':
+            proj = geoEckert6();
+            break;
+          case 'Eisenlohr':
+            proj = geoEisenlohr();
+            break;
+          case 'Fahey':
+            proj = geoFahey();
+            break;
+          case 'Foucaut':
+            proj = geoFoucaut();
+            break;
+          case 'FoucautSinusoidal':
+            proj = geoFoucautSinusoidal();
+            break;
+          case 'Gilbert':
+            proj = geoGilbert();
+            break;
+          case 'Gingery':
+            proj = geoGingery();
+            break;
+          case 'Ginzburg4':
+            proj = geoGinzburg4();
+            break;
+          case 'Ginzburg5':
+            proj = geoGinzburg5();
+            break;
+          case 'Ginzburg6':
+            proj = geoGinzburg6();
+            break;
+          case 'Ginzburg8':
+            proj = geoGinzburg8();
+            break;
+          case 'Ginzburg9':
+            proj = geoGinzburg9();
+            break;
+          case 'Gringorten':
+            proj = geoGringorten();
+            break;
+          case 'GringortenQuincuncial':
+            proj = geoGringortenQuincuncial();
+            break;
+          case 'Guyou':
+            proj = geoGuyou();
+            break;
+          case 'HammerRetroazimuthal':
+            proj = geoHammerRetroazimuthal();
+            break;
+          case 'Healpix':
+            proj = geoHealpix();
+            break;
+          case 'Hill':
+            proj = geoHill();
+            break;
+          case 'Homolosine':
+            proj = geoHomolosine();
+            break;
+          case 'Hufnagel':
+            proj = geoHufnagel();
+            break;
+          case 'Hyperelliptical':
+            proj = geoHyperelliptical();
+            break;
+          case 'InterruptedHomolosine':
+            proj = geoInterruptedHomolosine();
+            break;
+          case 'InterruptedMollweide':
+            proj = geoInterruptedMollweide();
+            break;
+          case 'InterruptedMollweideHemispheres':
+            proj = geoInterruptedMollweideHemispheres();
+            break;
+          case 'InterruptedQuarticAuthalic':
+            proj = geoInterruptedQuarticAuthalic();
+            break;
+          case 'InterruptedSinuMollweide':
+            proj = geoInterruptedSinuMollweide();
+            break;
+          case 'Kavrayskiy7':
+            proj = geoKavrayskiy7();
+            break;
+          case 'Lagrange':
+            proj = geoLagrange();
+            break;
+          case 'Larrivee':
+            proj = geoLarrivee();
+            break;
+          case 'Laskowski':
+            proj = geoLaskowski();
+            break;
+          case 'Littrow':
+            proj = geoLittrow();
+            break;
+          case 'Loximuthal':
+            proj = geoLoximuthal();
+            break;
+          case 'Miller':
+            proj = geoMiller();
+            break;
+          case 'MtFlatPolarParabolic':
+            proj = geoMtFlatPolarParabolic();
+            break;
+          case 'MtFlatPolarQuartic':
+            proj = geoMtFlatPolarQuartic();
+            break;
+          case 'MtFlatPolarSinusoidal':
+            proj = geoMtFlatPolarSinusoidal();
+            break;
+          case 'NaturalEarth2':
+            proj = geoNaturalEarth2();
+            break;
+          case 'NellHammer':
+            proj = geoNellHammer();
+            break;
+          case 'Nicolosi':
+            proj = geoNicolosi();
+            break;
+          case 'Patterson':
+            proj = geoPatterson();
+            break;
+          case 'Polyconic':
+            proj = geoPolyconic();
+            break;
+          case 'PolyhedralCollignon':
+            proj = geoPolyhedralCollignon();
+            break;
+          case 'PolyhedralWaterman':
+            proj = geoPolyhedralWaterman();
+            break;
+          case 'RectangularPolyconic':
+            proj = geoRectangularPolyconic();
+            break;
+          case 'InterruptedSinusoidal':
+            proj = geoInterruptedSinusoidal();
+            break;
+          case 'InterruptedBoggs':
+            proj = geoInterruptedBoggs();
+            break;
+          case 'PolyhedralButterfly':
+            proj = geoPolyhedralButterfly();
+            break;
+          case 'PeirceQuincuncial':
+            proj = geoPeirceQuincuncial();
+            break;
+          case 'Hammer':
+            proj = geoHammer();
+            break;
+          case 'Mollweide':
+            proj = geoMollweide();
+            break;
+          case 'Robinson':
+            proj = geoRobinson();
+            break;
+          case 'Sinusoidal':
+            proj = geoSinusoidal();
+            break;
+          case 'Satellite':
+            proj = geoSatellite();
+            break;
+          case 'SinuMollweide':
+            proj = geoSinuMollweide();
+            break;
+          case 'Times':
+            proj = geoTimes();
+            break;
+          case 'TwoPointAzimuthal':
+            proj = geoTwoPointAzimuthal([0, 0], [0, 0]); // 需要2个点参数
+            break;
+          case 'TwoPointEquidistant':
+            proj = geoTwoPointEquidistant([0, 0], [0, 0]); // 需要2个点参数
+            break;
+          case 'VanDerGrinten':
+            proj = geoVanDerGrinten();
+            break;
+          case 'VanDerGrinten2':
+            proj = geoVanDerGrinten2();
+            break;
+          case 'VanDerGrinten3':
+            proj = geoVanDerGrinten3();
+            break;
+          case 'VanDerGrinten4':
+            proj = geoVanDerGrinten4();
+            break;
+          case 'Wagner4':
+            proj = geoWagner4();
+            break;
+          case 'Wagner6':
+            proj = geoWagner6();
+            break;
+          case 'Wagner7':
+            proj = geoWagner7();
+            break;
+          case 'Wiechel':
+            proj = geoWiechel();
+            break;
+          case 'Winkel3':
+            proj = geoWinkel3();
             break;
           default:
             proj = d3.geoAzimuthalEquidistant();
@@ -138,6 +489,17 @@
         }
         // ConicConformal 投影已經在投影定義中設定了中心點，不需要額外的旋轉
 
+        // 定義支持 center 方法的投影（主要是 D3 核心投影的 Conic 系列）
+        const supportsCenterMethod = [
+          'Albers',
+          'ConicEqualArea',
+          'ConicEquidistant',
+          'AzimuthalEqualArea',
+          'AzimuthalEquidistant',
+          'Gnomonic',
+          'Orthographic',
+        ];
+
         // 根據投影類型選擇適當的 fit 目標
         try {
           if (type === 'Stereographic') {
@@ -148,12 +510,12 @@
             proj.fitExtent(extent, { type: 'Sphere' });
             const currentScale = proj.scale();
             proj.scale(currentScale * conicConformalScale.value);
-          } else if (type === 'Aitoff' || type === 'Armadillo' || type === 'Bonne') {
-            // Aitoff、Armadillo 和 Bonne 投影：不支持 center 方法，只使用 rotate 和 fitExtent
-            proj.fitExtent(extent, { type: 'Sphere' });
-          } else {
-            // 其他投影使用球體
+          } else if (supportsCenterMethod.includes(type)) {
+            // 這些投影支持 center 方法
             proj.center([0, 0]).fitExtent(extent, { type: 'Sphere' });
+          } else {
+            // 大部分 d3-geo-projection 的投影不支持 center 方法，只使用 fitExtent
+            proj.fitExtent(extent, { type: 'Sphere' });
           }
         } catch (e) {
           // eslint-disable-next-line no-console

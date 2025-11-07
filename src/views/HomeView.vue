@@ -87,18 +87,20 @@
       >
         <div class="bg-dark bg-opacity-75 rounded-3 p-3">
           <!-- 🌍 投影類型選擇區域 -->
-          <div class="">
-            <div class="d-flex flex-column gap-1">
-              <button
-                v-for="projection in projections"
-                :key="projection.layerId"
-                class="btn border-0 my-country-btn my-font-sm-white px-4 py-3"
-                :class="[currentProjection === projection.layerName ? 'active' : '']"
-                @click="changeProjection(projection.layerId)"
-              >
-                {{ projection.layerName }}
-              </button>
-            </div>
+          <div
+            class="d-flex flex-column gap-1"
+            style="max-height: 70vh; overflow-y: auto; overflow-x: hidden"
+          >
+            <button
+              v-for="projection in projections"
+              :key="projection.layerId"
+              class="btn border-0 my-country-btn my-font-xs-white px-4 py-1 d-flex align-items-center justify-content-between"
+              :class="[currentProjection === projection.layerName ? 'active' : '']"
+              @click="changeProjection(projection.layerId)"
+            >
+              <span>{{ projection.layerName }}</span>
+              <span class="projection-shape ms-2">{{ projection.shape || '⬭' }}</span>
+            </button>
           </div>
         </div>
       </div>
@@ -108,4 +110,23 @@
 
 <style>
   @import '../assets/css/common.css';
+
+  /* 自定義滾動條樣式 */
+  .overflow-y-auto::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  .overflow-y-auto::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+  }
+
+  .overflow-y-auto::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 4px;
+  }
+
+  .overflow-y-auto::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.5);
+  }
 </style>
