@@ -17,7 +17,7 @@
   import MapTab from '../tabs/MapTab.vue';
   import { useDataStore } from '@/stores/dataStore.js';
   import { useDefineStore } from '@/stores/defineStore.js';
-  import { ref, onMounted, computed } from 'vue';
+  import { ref, onMounted, computed, nextTick } from 'vue';
 
   export default {
     name: 'HomeView',
@@ -35,7 +35,7 @@
       const setMapInstance = (map) => {
         dataStore.setMapInstance(map);
         if (map?.setMapCenter) {
-          map.setMapCenter(centerMode.value);
+          nextTick(() => map.setMapCenter(centerMode.value));
         }
       };
 
@@ -67,7 +67,7 @@
           ? dataStore.mapInstance
           : dataStore.mapInstance?.value;
         if (map?.setMapCenter) {
-          map.setMapCenter(mode);
+          nextTick(() => map.setMapCenter(mode));
         }
       };
 
@@ -139,31 +139,36 @@
         class="position-absolute top-0 end-0 p-3 d-flex flex-column align-items-end"
         style="gap: 0.5rem; z-index: 1000;"
       >
-        <div class="btn-group btn-group-sm" role="group" aria-label="Map center selection">
-          <button
-            type="button"
-            :class="['btn', 'btn-sm', centerMode === 'origin' ? 'btn-primary text-white' : 'btn-outline-light text-light']"
-            @click="setCenterMode('origin')"
-            title="地圖中心：經緯度原點 (0°, 0°)"
-          >
-            原點
-          </button>
-          <button
-            type="button"
-            :class="['btn', 'btn-sm', centerMode === 'taiwan' ? 'btn-primary text-white' : 'btn-outline-light text-light']"
-            @click="setCenterMode('taiwan')"
-            title="地圖中心：台灣地理中心 (23°58′25.9486″N, 120°58′55.2886″E)"
-          >
-            台灣
-          </button>
-          <button
-            type="button"
-            :class="['btn', 'btn-sm', centerMode === 'lon120' ? 'btn-primary text-white' : 'btn-outline-light text-light']"
-            @click="setCenterMode('lon120')"
-            title="地圖中心：東經120° 赤道"
-          >
-            經度120
-          </button>
+        <div class="bg-dark bg-opacity-75 rounded-3 p-3">
+          <div class="d-flex flex-column gap-2">
+            <button
+              type="button"
+              class="btn border-0 my-country-btn my-font-xs-white px-4 py-1"
+              :class="[centerMode === 'origin' ? 'active' : '']"
+              @click="setCenterMode('origin')"
+              title="地圖中心：經緯度原點 (0°, 0°)"
+            >
+              原點
+            </button>
+            <button
+              type="button"
+              class="btn border-0 my-country-btn my-font-xs-white px-4 py-1"
+              :class="[centerMode === 'taiwan' ? 'active' : '']"
+              @click="setCenterMode('taiwan')"
+              title="地圖中心：台灣地理中心 (23°58′25.9486″N, 120°58′55.2886″E)"
+            >
+              台灣
+            </button>
+            <button
+              type="button"
+              class="btn border-0 my-country-btn my-font-xs-white px-4 py-1"
+              :class="[centerMode === 'lon120' ? 'active' : '']"
+              @click="setCenterMode('lon120')"
+              title="地圖中心：東經120° 赤道"
+            >
+              經度120
+            </button>
+          </div>
         </div>
       </div>
     </div>

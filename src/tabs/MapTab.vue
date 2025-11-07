@@ -111,6 +111,8 @@
   } from 'd3-geo-projection';
   import { useDataStore } from '@/stores/dataStore.js';
 
+  const TAIWAN_CENTER = [120.9820246, 23.9738747];
+
   export default {
     name: 'MapTab',
     props: {
@@ -144,7 +146,7 @@
       const currentScale = ref(80);
       const centerPresets = {
         origin: [0, 0],
-        taiwan: [120.9820246, 23.9738747],
+        taiwan: TAIWAN_CENTER,
         lon120: [120, 0],
       };
       const currentCenterMode = ref('origin');
@@ -630,7 +632,22 @@
           .attr('stroke-width', 2)
           .attr('opacity', 1);
 
-        // 台灣地理中心點已移除，不再繪製藍色圓點
+        const taiwanPoint = projection(TAIWAN_CENTER);
+        if (taiwanPoint) {
+          const marker = g.select('.taiwan-center-marker');
+          if (marker.empty()) {
+            g.append('circle')
+              .attr('class', 'taiwan-center-marker')
+              .attr('cx', taiwanPoint[0])
+              .attr('cy', taiwanPoint[1])
+              .attr('r', 4)
+              .attr('fill', '#0066ff')
+              .attr('stroke', '#ffffff')
+              .attr('stroke-width', 1.5);
+          } else {
+            marker.attr('cx', taiwanPoint[0]).attr('cy', taiwanPoint[1]);
+          }
+        }
 
         // 移除距離圓圈繪製
 
@@ -872,7 +889,17 @@
             .attr('stroke-width', 1)
             .attr('opacity', 0.8);
 
-          // 台灣地理中心點已移除，不再繪製藍色圓點
+          const taiwanPoint = projection(TAIWAN_CENTER);
+          if (taiwanPoint) {
+            g.append('circle')
+              .attr('class', 'taiwan-center-marker')
+              .attr('cx', taiwanPoint[0])
+              .attr('cy', taiwanPoint[1])
+              .attr('r', 4)
+              .attr('fill', '#0066ff')
+              .attr('stroke', '#ffffff')
+              .attr('stroke-width', 1.5);
+          }
 
           // 距離圓圈功能已移除
 
@@ -935,7 +962,22 @@
         // 更新經緯線網格（確保在上層）
         g.selectAll('path.grid-line').attr('d', path);
 
-        // 台灣地理中心點已移除，不再繪製藍色圓點
+        const taiwanPoint = projection(TAIWAN_CENTER);
+        if (taiwanPoint) {
+          const marker = g.select('.taiwan-center-marker');
+          if (marker.empty()) {
+            g.append('circle')
+              .attr('class', 'taiwan-center-marker')
+              .attr('cx', taiwanPoint[0])
+              .attr('cy', taiwanPoint[1])
+              .attr('r', 4)
+              .attr('fill', '#0066ff')
+              .attr('stroke', '#ffffff')
+              .attr('stroke-width', 1.5);
+          } else {
+            marker.attr('cx', taiwanPoint[0]).attr('cy', taiwanPoint[1]);
+          }
+        }
 
         // 不再繪製距離圓
 
