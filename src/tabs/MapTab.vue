@@ -142,6 +142,13 @@
       // 當前投影類型和縮放比例
       const currentProjectionType = ref('AzimuthalEquidistant');
       const currentScale = ref(80);
+      const centerPresets = {
+        origin: [0, 0],
+        taiwan: [120.9820246, 23.9738747],
+        lon120: [120, 0],
+      };
+      const currentCenterMode = ref('origin');
+      const currentCenterCoords = ref(centerPresets.origin);
 
       // ConicConformal 投影的放大倍率
       const conicConformalScale = ref(5000);
@@ -157,6 +164,8 @@
        */
       const createProjection = (type, width, height) => {
         let proj;
+        const [centerLon, centerLat] = currentCenterCoords.value;
+        const rotation = [-centerLon, -centerLat, 0];
 
         switch (type) {
           case 'AzimuthalEqualArea':
@@ -179,12 +188,12 @@
             proj = d3.geoAlbers().parallels([20, 60]);
             break;
           case 'ConicConformal':
-            // 重新設計 Conic Conformal 投影：標準圓錐投影，北極在畫面正中間
+            // Conic Conformal 投影：標準圓錐投影，中心點設為經緯度 0,0
             proj = d3
               .geoConicConformal()
               .parallels([20, 60]) // 標準緯線：北緯20° 和 60°
-              .rotate([-120, 0]) // 旋轉：讓東經120度成為中心線
-              .center([120, 90]); // 中心點 [經度, 緯度] (東經120°，北緯90°)
+              .rotate([0, 0]) // 旋轉：讓經度0度成為中心線
+              .center([0, 0]); // 中心點 [經度, 緯度] (0°，0°)
             break;
           case 'ConicEqualArea':
             proj = d3.geoConicEqualArea().parallels([20, 60]);
@@ -492,11 +501,11 @@
         ];
 
         // 針對不同投影類型設定不同的旋轉
-        if (type !== 'ConicConformal' && proj.rotate) {
-          // 大部分投影類型將中心點設為東經120度、北緯0度
+        if (proj.rotate) {
+          // 根據所選中心設定投影旋轉
           // 只對支持 rotate 方法的投影進行旋轉
           try {
-            proj.rotate([-120, 0, 0]);
+            proj.rotate(rotation);
           } catch (e) {
             console.warn('[MapTab] rotate 失敗:', type, e);
           }
@@ -621,30 +630,21 @@
           .attr('stroke-width', 2)
           .attr('opacity', 1);
 
-        // 更新台灣地理中心點位置
-        const taiwanCenter = [120.9820246, 23.9738747]; // [經度, 緯度]
-        const taiwanCenterPoint = projection(taiwanCenter);
-        if (taiwanCenterPoint) {
-          // 如果圓點已存在，更新位置；否則創建新的
-          const existingMarker = g.select('.taiwan-center-marker');
-          if (existingMarker.empty()) {
-            g.append('circle')
-              .attr('class', 'taiwan-center-marker')
-              .attr('cx', taiwanCenterPoint[0])
-              .attr('cy', taiwanCenterPoint[1])
-              .attr('r', 4)
-              .attr('fill', '#0066ff')
-              .attr('stroke', '#ffffff')
-              .attr('stroke-width', 1);
-          } else {
-            existingMarker.attr('cx', taiwanCenterPoint[0]).attr('cy', taiwanCenterPoint[1]);
-          }
-        }
+        // 台灣地理中心點已移除，不再繪製藍色圓點
 
         // 移除距離圓圈繪製
 
         // eslint-disable-next-line no-console
         console.log('[MapTab] 投影切換完成，類型:', type, '縮放:', scale);
+      };
+
+      const setMapCenter = (mode) => {
+        const preset = centerPresets[mode] || centerPresets.origin;
+        currentCenterMode.value = mode;
+        currentCenterCoords.value = preset;
+        if (isMapReady.value) {
+          changeProjection(currentProjectionType.value, currentScale.value);
+        }
       };
 
       /**
@@ -700,7 +700,7 @@
           svgElement.value = svg.node();
 
           // 創建投影 - 使用參數化的投影類型
-          // 預設以台灣地理中心為投影中心，自動適應版面大小
+          // 所有投影以經緯度 0,0 為中心，自動適應版面大小
           projection = createProjection(currentProjectionType.value, width, height);
 
           // 創建路徑生成器
@@ -735,6 +735,7 @@
             path,
             navigateToLocation: () => navigateToLocation(),
             changeProjection: (type, scale) => changeProjection(type, scale),
+            setMapCenter: (mode) => setMapCenter(mode),
           };
 
           emit('map-ready', mapInterface);
@@ -849,9 +850,9 @@
             .append('path')
             .attr('d', path)
             .attr('fill', (d) => {
-              // 檢查國家顏色：台灣(紅色) &gt; 其他(淺灰色)
+              // 檢查國家顏色：台灣(鮮紅色) &gt; 其他(淺灰色)
               const countryName = d.properties.name || d.properties.ADMIN || d.properties.NAME;
-              if (dataStore.isHomeCountry(countryName)) return '#ff9999'; // 台灣：紅色
+              if (dataStore.isHomeCountry(countryName)) return '#ff0000'; // 台灣：鮮紅色
               return '#d0d0d0'; // 其他：淺灰色
             })
             .attr('stroke', '#666666')
@@ -871,20 +872,7 @@
             .attr('stroke-width', 1)
             .attr('opacity', 0.8);
 
-          // 繪製台灣地理中心點（藍色圓點）
-          // 台灣地理中心：23°58′25.9486″N 120°58′55.2886″E
-          const taiwanCenter = [120.9820246, 23.9738747]; // [經度, 緯度]
-          const taiwanCenterPoint = projection(taiwanCenter);
-          if (taiwanCenterPoint) {
-            g.append('circle')
-              .attr('class', 'taiwan-center-marker')
-              .attr('cx', taiwanCenterPoint[0])
-              .attr('cy', taiwanCenterPoint[1])
-              .attr('r', 4)
-              .attr('fill', '#0066ff')
-              .attr('stroke', '#ffffff')
-              .attr('stroke-width', 1);
-          }
+          // 台灣地理中心點已移除，不再繪製藍色圓點
 
           // 距離圓圈功能已移除
 
@@ -898,11 +886,11 @@
 
       /**
        * 🌍 導航到指定位置
-       * 保留此函數以維持兼容性，但台灣位置已固定
+       * 保留此函數以維持兼容性
        */
       const navigateToLocation = () => {
-        // 台灣位置已固定在投影中心，此函數不再需要執行任何操作
-        console.log('[MapTab] 台灣位置已固定');
+        // 地圖中心點已固定在經緯度 0,0
+        console.log('[MapTab] 地圖中心點已固定');
       };
 
       /**
@@ -947,15 +935,7 @@
         // 更新經緯線網格（確保在上層）
         g.selectAll('path.grid-line').attr('d', path);
 
-        // 更新台灣地理中心點位置
-        const taiwanCenter = [120.9820246, 23.9738747]; // [經度, 緯度]
-        const taiwanCenterPoint = projection(taiwanCenter);
-        if (taiwanCenterPoint) {
-          const existingMarker = g.select('.taiwan-center-marker');
-          if (!existingMarker.empty()) {
-            existingMarker.attr('cx', taiwanCenterPoint[0]).attr('cy', taiwanCenterPoint[1]);
-          }
-        }
+        // 台灣地理中心點已移除，不再繪製藍色圓點
 
         // 不再繪製距離圓
 
@@ -1087,6 +1067,7 @@
         invalidateSize,
         navigateToLocation,
         changeProjection,
+        setMapCenter,
         // ConicConformal 相關
         conicConformalScale,
         setConicConformalScale,

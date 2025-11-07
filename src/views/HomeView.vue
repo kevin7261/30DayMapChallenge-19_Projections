@@ -32,7 +32,12 @@
        * 將 D3.js 地圖實例傳遞給 dataStore 以便投影切換使用
        * @param {Object} map - D3.js 地圖實例（包含 svg, projection, path, changeProjection）
        */
-      const setMapInstance = (map) => dataStore.setMapInstance(map);
+      const setMapInstance = (map) => {
+        dataStore.setMapInstance(map);
+        if (map?.setMapCenter) {
+          map.setMapCenter(centerMode.value);
+        }
+      };
 
       /**
        * 🌍 切換投影類型
@@ -54,6 +59,17 @@
 
       // 🌍 當前選中的投影類型（預設為 Azimuthal Equidistant）
       const currentProjection = ref('Azimuthal Equidistant');
+      const centerMode = ref('origin');
+
+      const setCenterMode = (mode) => {
+        centerMode.value = mode;
+        const map = dataStore.mapInstance?.setMapCenter
+          ? dataStore.mapInstance
+          : dataStore.mapInstance?.value;
+        if (map?.setMapCenter) {
+          map.setMapCenter(mode);
+        }
+      };
 
       // 🚀 初始化應用程式
       onMounted(() => {
@@ -64,9 +80,11 @@
       return {
         setMapInstance,
         changeProjection,
+        setCenterMode,
         projections,
         defineStore,
         currentProjection,
+        centerMode,
       };
     },
   };
@@ -113,6 +131,39 @@
               <small class="projection-shape ms-2">{{ projection.shape || '橢圓形' }}</small>
             </button>
           </div>
+        </div>
+      </div>
+
+      <!-- 🎯 右上角中心切換按鈕 -->
+      <div
+        class="position-absolute top-0 end-0 p-3 d-flex flex-column align-items-end"
+        style="gap: 0.5rem; z-index: 1000;"
+      >
+        <div class="btn-group btn-group-sm" role="group" aria-label="Map center selection">
+          <button
+            type="button"
+            :class="['btn', 'btn-sm', centerMode === 'origin' ? 'btn-primary text-white' : 'btn-outline-light text-light']"
+            @click="setCenterMode('origin')"
+            title="地圖中心：經緯度原點 (0°, 0°)"
+          >
+            原點
+          </button>
+          <button
+            type="button"
+            :class="['btn', 'btn-sm', centerMode === 'taiwan' ? 'btn-primary text-white' : 'btn-outline-light text-light']"
+            @click="setCenterMode('taiwan')"
+            title="地圖中心：台灣地理中心 (23°58′25.9486″N, 120°58′55.2886″E)"
+          >
+            台灣
+          </button>
+          <button
+            type="button"
+            :class="['btn', 'btn-sm', centerMode === 'lon120' ? 'btn-primary text-white' : 'btn-outline-light text-light']"
+            @click="setCenterMode('lon120')"
+            title="地圖中心：東經120° 赤道"
+          >
+            經度120
+          </button>
         </div>
       </div>
     </div>
