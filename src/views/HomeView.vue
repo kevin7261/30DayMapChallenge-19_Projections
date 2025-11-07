@@ -80,16 +80,27 @@
       <!-- 🗺️ 地圖組件 -->
       <MapTab @map-ready="setMapInstance" :current-projection="currentProjection" />
 
-      <!-- 🎛️ 左側中間控制面板 -->
+      <!-- 🎛️ 左側控制面板（全高） -->
       <div
         class="position-absolute"
-        style="top: 50%; left: 0; transform: translateY(-50%); z-index: 1000; padding: 1rem"
+        style="
+          top: 0;
+          left: 0;
+          bottom: 0;
+          z-index: 1000;
+          padding: 1rem;
+          display: flex;
+          flex-direction: column;
+        "
       >
-        <div class="bg-dark bg-opacity-75 rounded-3 p-3">
+        <div
+          class="bg-dark bg-opacity-75 h-100 rounded-3 p-3"
+          style="display: flex; flex-direction: column"
+        >
           <!-- 🌍 投影類型選擇區域 -->
           <div
-            class="d-flex flex-column gap-1"
-            style="max-height: 70vh; overflow-y: auto; overflow-x: hidden"
+            class="d-flex flex-column gap-1 flex-grow-1"
+            style="overflow-y: auto; overflow-x: hidden"
           >
             <button
               v-for="projection in projections"
@@ -99,7 +110,7 @@
               @click="changeProjection(projection.layerId)"
             >
               <span>{{ projection.layerName }}</span>
-              <span class="projection-shape ms-2">{{ projection.shape || '⬭' }}</span>
+              <small class="projection-shape ms-2">{{ projection.shape || '橢圓形' }}</small>
             </button>
           </div>
         </div>

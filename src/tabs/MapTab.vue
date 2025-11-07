@@ -82,6 +82,7 @@
     geoMtFlatPolarParabolic,
     geoMtFlatPolarQuartic,
     geoMtFlatPolarSinusoidal,
+    geoNaturalEarth1 as geoNaturalEarth,
     geoNaturalEarth2,
     geoNellHammer,
     geoNicolosi,
@@ -202,7 +203,7 @@
             proj = d3.geoTransverseMercator();
             break;
           case 'NaturalEarth':
-            proj = d3.geoNaturalEarth();
+            proj = geoNaturalEarth();
             break;
           case 'Airy':
             proj = geoAiry();
