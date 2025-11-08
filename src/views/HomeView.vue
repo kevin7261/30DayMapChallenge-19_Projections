@@ -60,6 +60,7 @@
       const projections = computed(() => dataStore.layers[0].groupLayers);
 
 
+
 // 🌍 當前選中的投影類型（預設為 Azimuthal Equidistant）
 const currentProjection = ref('Azimuthal Equidistant');
 const centerMode = ref('origin');
@@ -168,6 +169,16 @@ const downloadPdf = async (mode) => {
 
   let pdf = null;
   let pageIndex = 0;
+  let fileIndex = 1;
+  const maxPagesPerFile = 36;
+
+  const saveCurrentPdf = () => {
+    if (!pdf) return;
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const label = targetView === 'taiwan' ? 'taiwan' : 'world';
+    const partSuffix = fileIndex > 1 ? `-part${fileIndex - 1}` : '';
+    pdf.save(`projections-${label}-${timestamp}${partSuffix}.pdf`);
+  };
 
   try {
     isExporting.value = true;
@@ -177,6 +188,13 @@ const downloadPdf = async (mode) => {
     await waitForRender();
 
     for (const layer of projectionList) {
+      if (pdf && pageIndex >= maxPagesPerFile) {
+        saveCurrentPdf();
+        pdf = null;
+        pageIndex = 0;
+        fileIndex += 1;
+      }
+
       changeProjection(layer.layerId);
       await waitForRender();
 
@@ -194,12 +212,13 @@ const downloadPdf = async (mode) => {
           unit: 'px',
           format: [width, height],
         });
+        pageIndex = 0;
       } else {
         pdf.addPage([width, height], orientation);
       }
 
-      pageIndex = pdf.getNumberOfPages();
-      pdf.setPage(pageIndex);
+      pageIndex += 1;
+      pdf.setPage(pdf.getNumberOfPages());
 
       pdf.addImage(dataUrl, 'PNG', 0, 0, width, height);
       pdf.setFont('helvetica', 'bold');
@@ -211,9 +230,7 @@ const downloadPdf = async (mode) => {
     }
 
     if (pdf) {
-      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-      const label = targetView === 'taiwan' ? 'taiwan' : 'world';
-      pdf.save(`projections-${label}-${timestamp}.pdf`);
+      saveCurrentPdf();
     }
   } catch (error) {
     console.error('[HomeView] 匯出 PDF 失敗:', error);
