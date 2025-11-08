@@ -18,6 +18,7 @@
   import { useDataStore } from '@/stores/dataStore.js';
   import { useDefineStore } from '@/stores/defineStore.js';
   import { ref, onMounted, computed, nextTick } from 'vue';
+  import jsPDF from 'jspdf';
 
   export default {
     name: 'HomeView',
@@ -58,30 +59,172 @@
       // 📊 獲取投影類型列表
       const projections = computed(() => dataStore.layers[0].groupLayers);
 
-      // 🌍 當前選中的投影類型（預設為 Azimuthal Equidistant）
-      const currentProjection = ref('Azimuthal Equidistant');
-      const centerMode = ref('origin');
-      const viewMode = ref('world');
 
-      const setCenterMode = (mode) => {
-        centerMode.value = mode;
-        const map = dataStore.mapInstance?.value ?? dataStore.mapInstance;
-        if (map?.setMapCenter) {
-          nextTick(() => map.setMapCenter(mode));
-        }
-      };
+// 🌍 當前選中的投影類型（預設為 Azimuthal Equidistant）
+const currentProjection = ref('Azimuthal Equidistant');
+const centerMode = ref('origin');
+const viewMode = ref('world');
+const isExporting = ref(false);
 
-      const setViewMode = (mode) => {
-        viewMode.value = mode === 'taiwan' ? 'taiwan' : 'world';
-        const map = dataStore.mapInstance?.value ?? dataStore.mapInstance;
-        if (map?.setViewMode) {
-          nextTick(() => map.setViewMode(viewMode.value));
-        }
-        if (viewMode.value === 'taiwan') {
-          setCenterMode('taiwan');
-        }
-      };
+const getSvgNode = () => {
+  const svgSelection = dataStore.mapInstance?.value?.svg || dataStore.mapInstance?.svg;
+  if (!svgSelection) return null;
+  return typeof svgSelection.node === 'function' ? svgSelection.node() : svgSelection;
+};
 
+const waitForRender = async () => {
+  await nextTick();
+  await new Promise((resolve) => requestAnimationFrame(() => setTimeout(resolve, 120)));
+};
+
+const captureSvgAsImage = async (svgNode) => {
+  if (!svgNode) throw new Error('SVG node is not available');
+  const serializer = new XMLSerializer();
+  let svgString = serializer.serializeToString(svgNode);
+  if (!svgString.includes('xmlns="http://www.w3.org/2000/svg"')) {
+    svgString = svgString.replace('<svg', '<svg xmlns="http://www.w3.org/2000/svg"');
+  }
+
+  const blob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+
+  const image = new Image();
+  const rect = svgNode.getBoundingClientRect();
+  const width = Math.max(1, Math.round(rect.width));
+  const height = Math.max(1, Math.round(rect.height));
+
+  return new Promise((resolve, reject) => {
+    image.onload = () => {
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#cecece';
+        ctx.fillRect(0, 0, width, height);
+        ctx.drawImage(image, 0, 0, width, height);
+        const dataUrl = canvas.toDataURL('image/png');
+        URL.revokeObjectURL(url);
+        resolve({ dataUrl, width, height });
+      } catch (err) {
+        URL.revokeObjectURL(url);
+        reject(err);
+      }
+    };
+    image.onerror = (err) => {
+      URL.revokeObjectURL(url);
+      reject(err);
+    };
+    image.src = url;
+  });
+};
+
+const setCenterMode = (mode) => {
+  centerMode.value = mode;
+  const map = dataStore.mapInstance?.value ?? dataStore.mapInstance;
+  if (map?.setMapCenter) {
+    nextTick(() => map.setMapCenter(mode));
+  }
+};
+
+const setViewMode = (mode) => {
+  const normalized = mode === 'taiwan' ? 'taiwan' : 'world';
+  viewMode.value = normalized;
+  const map = dataStore.mapInstance?.value ?? dataStore.mapInstance;
+  if (map?.setViewMode) {
+    nextTick(() => map.setViewMode(normalized));
+  }
+  if (normalized === 'taiwan') {
+    setCenterMode('taiwan');
+  } else {
+    setCenterMode('origin');
+  }
+};
+
+const downloadPdf = async (mode) => {
+  if (isExporting.value) return;
+  const map = dataStore.mapInstance?.value ?? dataStore.mapInstance;
+  if (!map?.changeProjection) {
+    console.error('[HomeView] 地圖尚未初始化，無法匯出 PDF');
+    return;
+  }
+
+  const projectionList = projections.value || [];
+  if (!projectionList.length) {
+    console.warn('[HomeView] 無投影可匯出');
+    return;
+  }
+
+  const targetView = mode === 'taiwan' ? 'taiwan' : 'world';
+  const targetCenter = mode === 'taiwan' ? 'taiwan' : 'origin';
+
+  const previousLayer = projectionList.find((layer) => layer.layerName === currentProjection.value);
+  const previousProjectionId = previousLayer?.layerId || projectionList[0].layerId;
+  const previousState = {
+    projectionId: previousProjectionId,
+    center: centerMode.value,
+    view: viewMode.value,
+  };
+
+  let pdf = null;
+  let pageIndex = 0;
+
+  try {
+    isExporting.value = true;
+
+    setViewMode(targetView);
+    setCenterMode(targetCenter);
+    await waitForRender();
+
+    for (const layer of projectionList) {
+      changeProjection(layer.layerId);
+      await waitForRender();
+
+      const svgNode = getSvgNode();
+      if (!svgNode) {
+        throw new Error('無法取得 SVG 元素');
+      }
+
+      const { dataUrl, width, height } = await captureSvgAsImage(svgNode);
+      const orientation = width >= height ? 'landscape' : 'portrait';
+
+      if (!pdf) {
+        pdf = new jsPDF({
+          orientation,
+          unit: 'px',
+          format: [width, height],
+        });
+      } else {
+        pdf.addPage([width, height], orientation);
+      }
+
+      pageIndex = pdf.getNumberOfPages();
+      pdf.setPage(pageIndex);
+
+      pdf.addImage(dataUrl, 'PNG', 0, 0, width, height);
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(20);
+      pdf.setTextColor('#000000');
+      pdf.text(`${layer.layerName}`, 24, 36);
+      pdf.setFontSize(12);
+      pdf.text(`View: ${targetView === 'taiwan' ? 'Taiwan' : 'World'}`, 24, 60);
+    }
+
+    if (pdf) {
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const label = targetView === 'taiwan' ? 'taiwan' : 'world';
+      pdf.save(`projections-${label}-${timestamp}.pdf`);
+    }
+  } catch (error) {
+    console.error('[HomeView] 匯出 PDF 失敗:', error);
+  } finally {
+    changeProjection(previousState.projectionId);
+    setViewMode(previousState.view);
+    setCenterMode(previousState.center);
+    await waitForRender();
+    isExporting.value = false;
+  }
+};
       // 🚀 初始化應用程式
       onMounted(() => {
         // 預設使用 Azimuthal Equidistant 投影
@@ -93,11 +236,13 @@
         changeProjection,
         setCenterMode,
         setViewMode,
+        downloadPdf,
         projections,
         defineStore,
         currentProjection,
         centerMode,
         viewMode,
+        isExporting,
       };
     },
   };
@@ -209,6 +354,26 @@
               title="僅顯示台灣"
             >
               台灣
+            </button>
+          </div>
+          <div class="d-flex flex-column gap-2 mt-3">
+            <button
+              type="button"
+              class="btn border-0 my-country-btn my-font-xs-white px-4 py-1"
+              :disabled="isExporting"
+              @click="downloadPdf('world')"
+              title="下載世界地圖模式的所有投影 PDF"
+            >
+              {{ isExporting ? '匯出中...' : '下載世界地圖 PDF' }}
+            </button>
+            <button
+              type="button"
+              class="btn border-0 my-country-btn my-font-xs-white px-4 py-1"
+              :disabled="isExporting"
+              @click="downloadPdf('taiwan')"
+              title="下載台灣模式的所有投影 PDF"
+            >
+              {{ isExporting ? '匯出中...' : '下載台灣 PDF' }}
             </button>
           </div>
         </div>

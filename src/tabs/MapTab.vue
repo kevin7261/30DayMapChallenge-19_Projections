@@ -923,10 +923,27 @@
           .raise();
       };
 
-      const renderGridLines = () => {
-        if (!g) return;
-        g.selectAll('path.grid-line').remove();
-      };
+
+const renderGridLines = () => {
+  if (!g) return;
+  const gridData = generateGridLines(currentProjectionType.value);
+  const selection = g
+    .selectAll('path.grid-line')
+    .data(gridData.features, (d, i) => d?.id || `grid-${i}`);
+  selection.exit().remove();
+  const merged = selection
+    .enter()
+    .append('path')
+    .attr('class', 'grid-line')
+    .merge(selection);
+
+  merged
+    .attr('d', path)
+    .attr('fill', 'none')
+    .attr('stroke', '#999999')
+    .attr('stroke-width', currentViewMode.value === 'taiwan' ? 0.5 : 1)
+    .attr('opacity', currentViewMode.value === 'taiwan' ? 0.6 : 0.8);
+};
 
       /**
        * 🎨 繪製世界地圖
