@@ -590,7 +590,6 @@
 
         renderSphereBorder();
         renderCountries();
-        renderGridLines();
         renderTaiwanGuides();
 
         console.log('[MapTab] 投影切換完成，類型:', type, '縮放:', scale, '模式:', currentViewMode.value);
@@ -731,75 +730,6 @@
         }
       };
 
-      /**
-       * 🌐 生成經緯線網格數據
-       * 生成每30度的經線和緯線，針對ConicConformal投影限制範圍
-       */
-      const generateGridLines = (projectionType = 'default') => {
-        const gridLines = [];
-
-        // 根據投影類型設定不同的經緯度範圍
-        let latMin, latMax, lonMin, lonMax;
-
-        if (projectionType === 'ConicConformal') {
-          // ConicConformal 投影：從北緯90度到南緯60度，不顯示南極
-          latMin = -60;
-          latMax = 90;
-          lonMin = -180;
-          lonMax = 180;
-        } else {
-          // 其他投影：使用完整範圍
-          latMin = -90;
-          latMax = 90;
-          lonMin = -180;
-          lonMax = 180;
-        }
-
-        // 生成緯線 (每30度一條)
-        for (let lat = latMin; lat <= latMax; lat += 30) {
-          // 跳過極點（它們是點而非線）
-          if (lat === -90 || lat === 90) continue;
-
-          const line = {
-            type: 'Feature',
-            geometry: {
-              type: 'LineString',
-              coordinates: [],
-            },
-          };
-
-          // 每條緯線由多個點組成
-          for (let lon = lonMin; lon <= lonMax; lon += 1) {
-            line.geometry.coordinates.push([lon, lat]);
-          }
-
-          gridLines.push(line);
-        }
-
-        // 生成經線 (每30度一條)
-        for (let lon = lonMin; lon <= lonMax - 30; lon += 30) {
-          const line = {
-            type: 'Feature',
-            geometry: {
-              type: 'LineString',
-              coordinates: [],
-            },
-          };
-
-          // 每條經線由多個點組成
-          for (let lat = latMin; lat <= latMax; lat += 1) {
-            line.geometry.coordinates.push([lon, lat]);
-          }
-
-          gridLines.push(line);
-        }
-
-        return {
-          type: 'FeatureCollection',
-          features: gridLines,
-        };
-      };
-
       const getFeaturesForView = () => {
         const data = worldData.value;
         if (!data?.features) return [];
@@ -919,31 +849,9 @@
               : '#366cb4'
           )
           .attr('stroke-width', 4)
-          .attr('opacity', 0.9)
           .raise();
       };
 
-
-const renderGridLines = () => {
-  if (!g) return;
-  const gridData = generateGridLines(currentProjectionType.value);
-  const selection = g
-    .selectAll('path.grid-line')
-    .data(gridData.features, (d, i) => d?.id || `grid-${i}`);
-  selection.exit().remove();
-  const merged = selection
-    .enter()
-    .append('path')
-    .attr('class', 'grid-line')
-    .merge(selection);
-
-  merged
-    .attr('d', path)
-    .attr('fill', 'none')
-    .attr('stroke', '#999999')
-    .attr('stroke-width', currentViewMode.value === 'taiwan' ? 0.5 : 1)
-    .attr('opacity', currentViewMode.value === 'taiwan' ? 0.6 : 0.8);
-};
 
       /**
        * 🎨 繪製世界地圖
@@ -960,7 +868,6 @@ const renderGridLines = () => {
 
           renderSphereBorder();
           renderCountries();
-          renderGridLines();
           renderTaiwanGuides();
 
           console.log('[MapTab] 地圖繪製完成，模式:', currentViewMode.value);
@@ -1003,7 +910,6 @@ const renderGridLines = () => {
 
         renderSphereBorder();
         renderCountries();
-        renderGridLines();
         renderTaiwanGuides();
 
         console.log('[MapTab] 地圖尺寸更新完成，模式:', currentViewMode.value);
