@@ -591,7 +591,6 @@
         renderSphereBorder();
         renderCountries();
         renderGridLines();
-        renderTaiwanCenterMarker();
         renderTaiwanGuides();
 
         console.log('[MapTab] 投影切換完成，類型:', type, '縮放:', scale, '模式:', currentViewMode.value);
@@ -678,7 +677,7 @@
             .append('svg')
             .attr('width', width)
             .attr('height', height)
-            .style('background', '#f0f0f0');
+            .style('background', '#cecece');
 
           svgElement.value = svg.node();
 
@@ -864,10 +863,9 @@
             const countryName =
               d.properties.name || d.properties.ADMIN || d.properties.NAME;
             if (dataStore.isHomeCountry(countryName)) return '#ff0000';
-            return '#d0d0d0';
+            return '#999999';
           })
-          .attr('stroke', '#666666')
-          .attr('stroke-width', 0.5);
+          .attr('stroke', 'none');
       };
 
       const renderTaiwanGuides = () => {
@@ -917,8 +915,8 @@
             d.id === 'guide-longitude-0-east' ||
             d.id === 'guide-longitude-0-west' ||
             d.id === 'guide-equator'
-              ? '#00aa00'
-              : '#0066ff'
+              ? '#44b046'
+              : '#366cb4'
           )
           .attr('stroke-width', 4)
           .attr('opacity', 0.9)
@@ -927,46 +925,7 @@
 
       const renderGridLines = () => {
         if (!g) return;
-        const gridData = generateGridLines(currentProjectionType.value);
-        const selection = g
-          .selectAll('path.grid-line')
-          .data(gridData.features, (d, i) => d?.id || `grid-${i}`);
-        selection.exit().remove();
-        const merged = selection
-          .enter()
-          .append('path')
-          .attr('class', 'grid-line')
-          .merge(selection);
-
-        merged
-          .attr('d', path)
-          .attr('fill', 'none')
-          .attr('stroke', '#999999')
-          .attr('stroke-width', currentViewMode.value === 'taiwan' ? 0.5 : 1)
-          .attr('opacity', currentViewMode.value === 'taiwan' ? 0.6 : 0.8);
-      };
-
-      const renderTaiwanCenterMarker = () => {
-        if (!g || !projection) return;
-        const taiwanPoint = projection(TAIWAN_CENTER);
-        const selection = g.selectAll('circle.taiwan-center-marker');
-        if (!taiwanPoint) {
-          selection.remove();
-          return;
-        }
-
-        const merged = selection
-          .data([taiwanPoint])
-          .enter()
-          .append('circle')
-          .attr('class', 'taiwan-center-marker')
-          .attr('r', 4)
-          .attr('fill', '#0066ff')
-          .attr('stroke', '#ffffff')
-          .attr('stroke-width', 1.5)
-          .merge(selection);
-
-        merged.attr('cx', (d) => d[0]).attr('cy', (d) => d[1]).raise();
+        g.selectAll('path.grid-line').remove();
       };
 
       /**
@@ -985,7 +944,6 @@
           renderSphereBorder();
           renderCountries();
           renderGridLines();
-          renderTaiwanCenterMarker();
           renderTaiwanGuides();
 
           console.log('[MapTab] 地圖繪製完成，模式:', currentViewMode.value);
@@ -1029,7 +987,6 @@
         renderSphereBorder();
         renderCountries();
         renderGridLines();
-        renderTaiwanCenterMarker();
         renderTaiwanGuides();
 
         console.log('[MapTab] 地圖尺寸更新完成，模式:', currentViewMode.value);
