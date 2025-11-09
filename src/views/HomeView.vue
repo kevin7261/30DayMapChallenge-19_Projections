@@ -100,7 +100,7 @@
         }
       };
 
-      const downloadPdf = async (mode) => {
+      const downloadPdf = async () => {
         if (isExporting.value) return;
         const map = dataStore.mapInstance?.value ?? dataStore.mapInstance;
         if (!map?.changeProjection) {
@@ -114,18 +114,10 @@
           return;
         }
 
-        const targetView = mode === 'taiwan' ? 'taiwan' : 'world';
-        const targetCenter = mode === 'taiwan' ? 'taiwan' : 'origin';
-
         const previousLayer = projectionList.find(
           (layer) => layer.layerName === currentProjection.value
         );
         const previousProjectionId = previousLayer?.layerId || projectionList[0].layerId;
-        const previousState = {
-          projectionId: previousProjectionId,
-          center: centerMode.value,
-          view: viewMode.value,
-        };
 
         const sanitizeFileName = (text) =>
           text
@@ -134,13 +126,11 @@
             .trim()
             .replace(/\s+/g, '_');
         const baseTimestamp = new Date().toISOString().replace(/[:.]/g, '-');
-        const label = targetView === 'taiwan' ? 'taiwan' : 'world';
+        const label = viewMode.value === 'taiwan' ? 'taiwan' : 'world';
 
         try {
           isExporting.value = true;
 
-          setViewMode(targetView);
-          setCenterMode(targetCenter);
           await waitForRender();
 
           for (const layer of projectionList) {
@@ -188,7 +178,7 @@
             pdf.setTextColor('#000000');
             pdf.text(`${layer.layerName}`, 24, 36);
             pdf.setFontSize(12);
-            pdf.text(`View: ${targetView === 'taiwan' ? 'Taiwan' : 'World'}`, 24, 60);
+            pdf.text(`View: ${viewMode.value === 'taiwan' ? 'Taiwan' : 'World'}`, 24, 60);
 
             const sanitizedName = sanitizeFileName(
               layer.layerName || layer.layerId || 'projection'
@@ -199,9 +189,7 @@
         } catch (error) {
           console.error('[HomeView] 匯出 PDF 失敗:', error);
         } finally {
-          changeProjection(previousState.projectionId);
-          setViewMode(previousState.view);
-          setCenterMode(previousState.center);
+          changeProjection(previousProjectionId);
           await waitForRender();
           isExporting.value = false;
         }
@@ -342,7 +330,7 @@
               type="button"
               class="btn border-0 my-country-btn my-font-xs-white px-4 py-1"
               :disabled="isExporting"
-              @click="downloadPdf('world')"
+              @click="downloadPdf()"
               title="下載世界地圖模式的所有投影 PDF"
             >
               {{ isExporting ? '匯出中...' : '下載世界地圖 PDF' }}
@@ -351,7 +339,7 @@
               type="button"
               class="btn border-0 my-country-btn my-font-xs-white px-4 py-1"
               :disabled="isExporting"
-              @click="downloadPdf('taiwan')"
+              @click="downloadPdf()"
               title="下載台灣模式的所有投影 PDF"
             >
               {{ isExporting ? '匯出中...' : '下載台灣 PDF' }}
